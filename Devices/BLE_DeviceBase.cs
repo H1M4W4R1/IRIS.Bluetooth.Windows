@@ -9,7 +9,7 @@ namespace IRIS.Bluetooth.Devices
     /// <summary>
     /// Represents a Bluetooth LE device
     /// </summary>
-    public abstract class BluetoothLEDeviceBase : DeviceBase<BluetoothLEInterface>
+    public abstract class BLE_DeviceBase : DeviceBase<BluetoothLEInterface>
     {
         /// <summary>
         /// List of endpoints for the device
@@ -24,12 +24,12 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         public bool IsConnected { get; private set; }
 
-        public BluetoothLEDeviceBase(string deviceNameRegex)
+        public BLE_DeviceBase(string deviceNameRegex)
         {
             HardwareAccess = new BluetoothLEInterface(deviceNameRegex);
         }
 
-        public BluetoothLEDeviceBase(Guid serviceUUID)
+        public BLE_DeviceBase(Guid serviceUUID)
         {
             HardwareAccess = new BluetoothLEInterface(serviceUUID);
         }

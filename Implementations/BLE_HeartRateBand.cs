@@ -5,7 +5,11 @@ using IRIS.Bluetooth.Implementations.Data;
 
 namespace IRIS.Bluetooth.Implementations
 {
-    public sealed class HeartRateBandBluetoothLEDevice() : BluetoothLEDeviceBase(GattServiceUuids.HeartRate)
+    /// <summary>
+    /// Heart Rate Band Bluetooth Low Energy device.
+    /// Uses the HeartRate GATT service.
+    /// </summary>
+    public sealed class BLE_HeartRateBand() : BLE_DeviceBase(GattServiceUuids.HeartRate)
     {
         private const int HEART_RATE_ENDPOINT_ID = 0;
         private const int HEART_RATE_CHARACTERISTIC_INDEX = 0;

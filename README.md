@@ -4,7 +4,7 @@ This is an IRIS subpackage for Bluetooth communication on
 Windows.
 
 ## Devices Abstractions
-### BluetoothLEDeviceBase
+### BLE_DeviceBase
 Device used to communicate with BLE devices. Requires
 BLE to be present on the system and uses WinRT API to
 perform operations.
@@ -20,16 +20,16 @@ change, especially initialization of endpoints
 
 Examples:
 ```cs
-public sealed class MyBLEDevice() :
-    BluetoothLEDeviceBase(GattServiceUuids.HeartRate)
+public sealed class BLE_MyDevice() :
+    BLE_DeviceBase(GattServiceUuids.HeartRate)
 {
     // Code
 }
 ```
 
 ```cs
-public sealed class MyBLEDevice() :
-    BluetoothLEDeviceBase("DEVICE-.*")
+public sealed class BLE_MyDevice() :
+    BLE_DeviceBase("DEVICE-.*")
 {
     // Code
 }
@@ -40,3 +40,9 @@ public sealed class MyBLEDevice() :
 Interface used to communicate with BLE devices. Uses WinRT
 API to perform operations. Handles most communication
 and is not recommended to be used directly.
+
+## Included Examples
+### BLE_HeartRateBand
+Example device implementation for BLE heart rate band that
+connects to device with Heart Rate service.
+
