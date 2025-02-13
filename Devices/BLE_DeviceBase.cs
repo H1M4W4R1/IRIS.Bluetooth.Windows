@@ -2,6 +2,7 @@
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using IRIS.Bluetooth.Communication;
+using IRIS.Bluetooth.Data;
 using IRIS.Devices;
 
 namespace IRIS.Bluetooth.Devices
@@ -13,16 +14,28 @@ namespace IRIS.Bluetooth.Devices
     {
         /// <summary>
         /// List of endpoints for the device
+        /// TODO: Combine those dictionaries and add boolean to check if endpoint is required to exist
+        ///       to allow simple check for endpoint existence after attaching
         /// </summary>
-        // TODO: make this a dictionary of endpoint info to allow registering attached endpoints
-        //       to make them able to clear their own event handlers
         private Dictionary<uint, BluetoothEndpoint?> Endpoints { get; } =
-            new Dictionary<uint, BluetoothEndpoint?>();
+            new();
+
+        /// <summary>
+        /// List of notification handlers for the device
+        /// </summary>
+        private Dictionary<uint, List<BluetoothEndpoint.NotificationReceivedHandler>>
+            NotificationHandlers { get; } =
+            new();
 
         /// <summary>
         /// Determines if the device is connected
         /// </summary>
-        public bool IsConnected { get; private set; }
+        public BluetoothDeviceState DeviceState { get; private set; } 
+        
+        /// <summary>
+        /// Check if the device is connected
+        /// </summary>
+        public bool IsConnected => DeviceState == BluetoothDeviceState.Connected;
 
         public BLE_DeviceBase(string deviceNameRegex)
         {
@@ -37,41 +50,40 @@ namespace IRIS.Bluetooth.Devices
         /// <summary>
         /// Used to attach to endpoints events
         /// </summary>
-        protected virtual Task AttachEndpoints(CancellationToken cancellationToken = default)
+        protected virtual Task AttachOrLoadEndpoints()
             => Task.CompletedTask;
 
         /// <summary>
         /// Used to detach from endpoints events
         /// </summary>
-        protected async Task DetachEndpoints(CancellationToken cancellationToken = default)
+        private async Task DetachOrUnloadAllEndpoints()
         {
             // Loop through all endpoints and detach from events
             foreach (KeyValuePair<uint, BluetoothEndpoint?> endpoint in Endpoints)
-            {
-                // Detach only from notification-enabled endpoints
-                if (endpoint.Value is {AreNotificationsActive: true} notificationEndpoint)
-                    await notificationEndpoint.SetNotify(false, false);
-            }
+                await DetachOrUnloadEndpoint(endpoint.Key);
         }
 
         public sealed override async Task<bool> Connect(CancellationToken cancellationToken = default)
         {
             // Check if device is already connected
             if (IsConnected) return true;
+            
+            // Begin connection
+            DeviceState = BluetoothDeviceState.Connecting;
 
             // Try to connect to device
             // We don't need to subscribe to device connected event as
             // interface will wait for device to be connected
             if (!await base.Connect(cancellationToken)) return false;
 
+            // Connection successful
+            DeviceState = BluetoothDeviceState.Connected;
+            
             // Handle disconnection
             HardwareAccess.OnDeviceDisconnected += HandleCommunicationFailed;
 
             // Attach to endpoints
-            await AttachEndpoints(cancellationToken);
-
-            // Device shall now be connected
-            IsConnected = true;
+            await AttachOrLoadEndpoints();
             return true;
         }
 
@@ -80,31 +92,30 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         public sealed override async Task<bool> Disconnect(CancellationToken cancellationToken = default)
         {
-            return await Disconnect(false, cancellationToken);
-        }
-
-        private async Task<bool> Disconnect(
-            bool failedConnection = false,
-            CancellationToken cancellationToken = default)
-        {
+            // Begin disconnection
+            DeviceState = BluetoothDeviceState.Disconnecting;
+            
             HardwareAccess.OnDeviceDisconnected -= HandleCommunicationFailed;
 
             // Detach from endpoints
-            await DetachEndpoints(cancellationToken);
+            await DetachOrUnloadAllEndpoints();
+            
+            // Guarantee that all endpoints and notification handlers are cleared
             Endpoints.Clear();
+            NotificationHandlers.Clear();
 
             if (!await base.Disconnect(cancellationToken)) return false;
 
-            // Device shall now be disconnected
-            IsConnected = false;
+            // Disconnection successful
+            DeviceState = BluetoothDeviceState.Disconnected;
             return true;
         }
 
         private async void HandleCommunicationFailed(ulong address, BluetoothLEDevice device)
         {
-            await Disconnect(true);
+            await Disconnect();
         }
-        
+
         /// <summary>
         /// Get an endpoint by index
         /// </summary>
@@ -130,7 +141,7 @@ namespace IRIS.Bluetooth.Devices
             BluetoothEndpoint? endpoint = await FindEndpoint(endpointService, endpointCharacteristicIndex);
             return await _AttachEndpoint(endpointIndex, endpoint, notificationHandler);
         }
-        
+
         /// <summary>
         /// Attach to an endpoint
         /// </summary>
@@ -148,6 +159,37 @@ namespace IRIS.Bluetooth.Devices
             // Get endpoint
             BluetoothEndpoint? endpoint = await FindEndpoint(endpointService, endpointCharacteristic);
             return await _AttachEndpoint(endpointIndex, endpoint, notificationHandler);
+        }
+
+        /// <summary>
+        /// Detach from an endpoint
+        /// </summary>
+        /// <param name="endpointIndex">Index of the endpoint</param>
+        private async Task DetachOrUnloadEndpoint(uint endpointIndex)
+        {
+            // Check if endpoint exists
+            if (!Endpoints.TryGetValue(endpointIndex, out BluetoothEndpoint? endpoint)) return;
+
+            // Check if endpoint is null
+            if (endpoint == null) return;
+
+            // Get notifications
+            if (NotificationHandlers.TryGetValue(endpointIndex,
+                    out List<BluetoothEndpoint.NotificationReceivedHandler>? notificationHandlers))
+            {
+                // We found notification handlers, so we need to detach them
+                foreach (BluetoothEndpoint.NotificationReceivedHandler notificationHandler in notificationHandlers)
+                    endpoint.NotificationReceived -= notificationHandler;
+                
+                // Clear notification handlers
+                NotificationHandlers.Remove(endpointIndex);
+            }
+            
+            // Detach from endpoint
+            await endpoint.SetNotify(false);
+            
+            // Remove endpoint
+            Endpoints.Remove(endpointIndex);
         }
 
         /// <summary>
@@ -174,6 +216,11 @@ namespace IRIS.Bluetooth.Devices
             // Attach to endpoint events if endpoint is not null and supports notify
             if (endpoint == null || !await endpoint.SetNotify(true)) return false;
             endpoint.NotificationReceived += notificationHandler;
+            
+            // Register notification handler
+            if (!NotificationHandlers.ContainsKey(endpointIndex))
+                NotificationHandlers.Add(endpointIndex, new List<BluetoothEndpoint.NotificationReceivedHandler>());
+            NotificationHandlers[endpointIndex].Add(notificationHandler);
             return true;
         }
 
@@ -206,7 +253,7 @@ namespace IRIS.Bluetooth.Devices
                 else
                     Debug.WriteLine($"Endpoint {endpointIndex} already exists on device {GetType().Name}");
             }
-            
+
             return Task.CompletedTask;
         }
 
@@ -227,11 +274,7 @@ namespace IRIS.Bluetooth.Devices
             GattDeviceServicesResult services = await HardwareAccess.ConnectedDevice.GetGattServicesAsync();
 
             // Check if services are valid
-            if (services.Status != GattCommunicationStatus.Success)
-            {
-                await HardwareAccess.NotifyDeviceIsUnreachable();
-                return null;
-            }
+            if (services.Status != GattCommunicationStatus.Success) return null;
 
             // Get the service with the correct UUID
             GattDeviceService? service = services.Services.FirstOrDefault(s => s.Uuid == serviceUUID);
@@ -260,11 +303,7 @@ namespace IRIS.Bluetooth.Devices
             GattCharacteristicsResult characteristics = await service.GetCharacteristicsAsync();
 
             // Check if characteristics are valid
-            if (characteristics.Status != GattCommunicationStatus.Success)
-            {
-                await HardwareAccess.NotifyDeviceIsUnreachable();
-                return null;
-            }
+            if (characteristics.Status != GattCommunicationStatus.Success) return null;
 
             // Get the characteristic with the correct index
             GattCharacteristic? characteristic = characteristics.Characteristics.ElementAtOrDefault(endpointIndex);
@@ -293,11 +332,7 @@ namespace IRIS.Bluetooth.Devices
             GattCharacteristicsResult characteristics = await service.GetCharacteristicsAsync();
 
             // Check if characteristics are valid
-            if (characteristics.Status != GattCommunicationStatus.Success)
-            {
-                await HardwareAccess.NotifyDeviceIsUnreachable();
-                return null;
-            }
+            if (characteristics.Status != GattCommunicationStatus.Success) return null;
 
             // Get the characteristic with the correct UUID
             GattCharacteristic? characteristic =

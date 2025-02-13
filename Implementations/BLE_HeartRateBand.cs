@@ -26,7 +26,7 @@ namespace IRIS.Bluetooth.Implementations
 
         private BluetoothEndpoint? HeartRateEndpoint { get; set; }
 
-        protected override async Task AttachEndpoints(CancellationToken cancellationToken = default)
+        protected override async Task AttachOrLoadEndpoints()
         {
             // Attach the heart rate endpoint
             // we don't need to notify interface for disconnection as
@@ -34,11 +34,10 @@ namespace IRIS.Bluetooth.Implementations
             await AttachEndpoint(HEART_RATE_ENDPOINT_ID, GattServiceUuids.HeartRate,
                 HEART_RATE_CHARACTERISTIC_INDEX, HandleHeartRateNotification);
 
-            // Check if the device is still connected
-            if (!IsConnected) return;
-            
             // Get the heart rate endpoint
             HeartRateEndpoint = GetEndpoint(HEART_RATE_ENDPOINT_ID);
+            
+            // Check if endpoints are attached
         }
 
         /// <summary>

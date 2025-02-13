@@ -393,13 +393,7 @@ namespace IRIS.Bluetooth.Communication
         private async Task<IBuffer?> ReadRawValue()
         {
             GattReadResult result = await Characteristic.ReadValueAsync();
-            if (result.Status != GattCommunicationStatus.Success)
-            {
-                await Interface.NotifyDeviceIsUnreachable();
-                return null;
-            }
-
-            return result.Value;
+            return result.Status != GattCommunicationStatus.Success ? null : result.Value;
         }
 
         /// <summary>
@@ -408,13 +402,7 @@ namespace IRIS.Bluetooth.Communication
         private async Task<bool> WriteRawValue(IBuffer buffer)
         {
             GattCommunicationStatus status = await Characteristic.WriteValueAsync(buffer);
-            if (status != GattCommunicationStatus.Success)
-            {
-                await Interface.NotifyDeviceIsUnreachable();
-                return false;
-            }
-
-            return true;
+            return status == GattCommunicationStatus.Success;
         }
 
         /// <summary>
@@ -479,10 +467,11 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Set notify for this characteristic
         /// </summary>
-        public async Task<bool> SetNotify(bool shallNotify, bool notifyDeviceOnFail = true)
+        public async Task<bool> SetNotify(bool shallNotify)
         {
             // Check if service supports notify
-            if (!Characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify)) return false;
+            if (!Characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify))
+                return false;
             
             // Set notify
             GattCommunicationStatus status =
@@ -492,11 +481,7 @@ namespace IRIS.Bluetooth.Communication
                         : GattClientCharacteristicConfigurationDescriptorValue.None);
 
             // Check if status is OK
-            if (status != GattCommunicationStatus.Success)
-            {
-                if(notifyDeviceOnFail) await Interface.NotifyDeviceIsUnreachable();
-                return false;
-            }
+            if (status != GattCommunicationStatus.Success) return false;
 
             // Set notification handler
             if (shallNotify) Characteristic.ValueChanged += OnNotificationReceivedHandler;

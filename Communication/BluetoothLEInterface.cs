@@ -157,14 +157,5 @@ namespace IRIS.Bluetooth.Communication
                 OnDeviceConnected(DeviceBluetoothAddress, device);
             }
         }
-        
-        /// <summary>
-        /// Notify that device is unreachable
-        /// </summary>
-        internal async Task NotifyDeviceIsUnreachable()
-        {
-            // If device is unreachable, disconnect
-            if (IsConnected) await Disconnect();
-        }
     }
 }
