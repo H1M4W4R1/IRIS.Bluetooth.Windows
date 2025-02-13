@@ -395,7 +395,7 @@ namespace IRIS.Bluetooth.Communication
             GattReadResult result = await Characteristic.ReadValueAsync();
             if (result.Status != GattCommunicationStatus.Success)
             {
-                await Interface.Disconnect();
+                await Interface.NotifyDeviceIsUnreachable();
                 return null;
             }
 
@@ -410,7 +410,7 @@ namespace IRIS.Bluetooth.Communication
             GattCommunicationStatus status = await Characteristic.WriteValueAsync(buffer);
             if (status != GattCommunicationStatus.Success)
             {
-                await Interface.Disconnect();
+                await Interface.NotifyDeviceIsUnreachable();
                 return false;
             }
 
