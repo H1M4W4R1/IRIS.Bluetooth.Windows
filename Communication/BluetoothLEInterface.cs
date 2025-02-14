@@ -361,7 +361,7 @@ namespace IRIS.Bluetooth.Communication
             switch (characteristic.Status)
             {
                 case GattCommunicationStatus.Unreachable:
-                    Disconnect();
+                    await Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
                 default: return null;
@@ -404,7 +404,7 @@ namespace IRIS.Bluetooth.Communication
             switch (characteristics.Status)
             {
                 case GattCommunicationStatus.Unreachable:
-                    Disconnect();
+                    await Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
                 default: return null;
@@ -454,7 +454,7 @@ namespace IRIS.Bluetooth.Communication
             switch (services.Status)
             {
                 case GattCommunicationStatus.Unreachable:
-                    Disconnect();
+                    await Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
                 default: return null;

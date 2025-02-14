@@ -45,12 +45,12 @@ namespace IRIS.Bluetooth.Devices
         /// <summary>
         /// Used to detach from endpoints events
         /// </summary>
-        private void DetachOrUnloadAllEndpoints()
+        private async ValueTask DetachOrUnloadAllEndpoints()
         {
             // Loop through all endpoints and detach from events
             for (int index = 0; index < Endpoints.Count; index++)
             {
-                DetachOrUnloadEndpoint(index);
+                await DetachOrUnloadEndpoint(index);
             }
         }
 
@@ -78,7 +78,7 @@ namespace IRIS.Bluetooth.Devices
 
             // Ensure that all required endpoints are attached
             if (CheckIfAllRequiredEndpointsAreValid()) return true;
-            
+
             // Disconnect if required endpoints are not attached
             await Disconnect(cancellationToken);
             return false;
@@ -95,7 +95,7 @@ namespace IRIS.Bluetooth.Devices
             HardwareAccess.OnDeviceDisconnected -= HandleCommunicationFailed;
 
             // Detach from endpoints
-            DetachOrUnloadAllEndpoints();
+            await DetachOrUnloadAllEndpoints();
 
             // Guarantee that all endpoints and notification handlers are cleared
             Endpoints.Clear();
@@ -127,10 +127,9 @@ namespace IRIS.Bluetooth.Devices
             // Loop through all endpoints and find the one with the same index
             foreach (BLE_EndpointInfo endpoint in Endpoints)
             {
-                if (endpoint.EndpointIndex == endpointIndex)
-                    return endpoint;
+                if (endpoint.EndpointIndex == endpointIndex) return endpoint;
             }
-            
+
             return null;
         }
 
@@ -143,13 +142,12 @@ namespace IRIS.Bluetooth.Devices
             // Loop through all endpoints and check if all required endpoints are attached
             foreach (BLE_EndpointInfo endpoint in Endpoints)
             {
-                if (endpoint is {Mode: EndpointMode.Required, Endpoint: null})
-                    return false;
+                if (endpoint is {Mode: EndpointMode.Required, Endpoint: null}) return false;
             }
-            
+
             return true;
         }
-        
+
         /// <summary>
         /// Attach to an endpoint
         /// </summary>
@@ -168,7 +166,7 @@ namespace IRIS.Bluetooth.Devices
         {
             BLE_Endpoint? endpoint =
                 await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
-            
+
             return _AttachEndpoint(endpointIndex, endpoint, notificationHandler);
         }
 
@@ -190,7 +188,7 @@ namespace IRIS.Bluetooth.Devices
         {
             // Get endpoint
             BLE_Endpoint? endpoint = await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
-            
+
             return _AttachEndpoint(endpointIndex, endpoint, notificationHandler);
         }
 
@@ -227,7 +225,7 @@ namespace IRIS.Bluetooth.Devices
 
         // TODO: Load any endpoint by GUID or GUID pair (service:endpoint)
         // TODO: Attach to any endpoint by GUID or GUID pair (service:endpoint)
-        
+
         /// <summary>
         /// Load endpoint, if you want to attach to notifications, use AttachEndpoint instead
         /// </summary>
@@ -243,7 +241,7 @@ namespace IRIS.Bluetooth.Devices
         {
             BLE_Endpoint? endpoint =
                 await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
-            
+
             _LoadEndpoint(endpointIndex, endpoint, mode);
         }
 
@@ -254,7 +252,10 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="endpointService">Service UUID</param>
         /// <param name="endpointCharacteristic">Characteristic UUID</param>
         /// <param name="mode">Mode of the endpoint</param>
-        protected async ValueTask LoadEndpoint(uint endpointIndex, Guid endpointService, Guid endpointCharacteristic,
+        protected async ValueTask LoadEndpoint(
+            uint endpointIndex,
+            Guid endpointService,
+            Guid endpointCharacteristic,
             EndpointMode mode = EndpointMode.Required)
         {
             // Get endpoint
@@ -267,7 +268,10 @@ namespace IRIS.Bluetooth.Devices
         /// <summary>
         /// Internal method to load an endpoint
         /// </summary>
-        private void _LoadEndpoint(uint endpointIndex, BLE_Endpoint? endpoint, EndpointMode mode = EndpointMode.Required)
+        private void _LoadEndpoint(
+            uint endpointIndex,
+            BLE_Endpoint? endpoint,
+            EndpointMode mode = EndpointMode.Required)
         {
             // If no endpoint with same ID exists add it
             if (Endpoints.All(x => x.EndpointIndex != endpointIndex))
@@ -275,7 +279,7 @@ namespace IRIS.Bluetooth.Devices
                 Endpoints.Add(new BLE_EndpointInfo(endpointIndex, endpoint, mode));
                 return;
             }
-            
+
             // Search for first existing endpoint and replace it
             // if endpoint is null
             for (int i = 0; i < Endpoints.Count; i++)
@@ -296,19 +300,23 @@ namespace IRIS.Bluetooth.Devices
         /// Detach from an endpoint
         /// </summary>
         /// <param name="listIndex">Index of the endpoint in endpoints list</param>
-        private void DetachOrUnloadEndpoint(int listIndex)
+        private async ValueTask DetachOrUnloadEndpoint(int listIndex)
         {
+            BLE_EndpointInfo endpointInfo;
+            
             lock (Endpoints)
             {
                 // Check if endpoint exists
                 if (listIndex < 0 || listIndex >= Endpoints.Count) return;
 
                 // Get endpoint info
-                BLE_EndpointInfo endpointInfo = Endpoints[listIndex];
+                endpointInfo = Endpoints[listIndex];
+
+                // Remove endpoint
+                Endpoints.RemoveAt(listIndex);
 
                 // Check if endpoint exists
                 if (endpointInfo.Endpoint == null) return;
-
 
                 // We found notification handlers, so we need to detach them
                 foreach (BLE_Endpoint.NotificationReceivedHandler notificationHandler in endpointInfo
@@ -319,13 +327,11 @@ namespace IRIS.Bluetooth.Devices
 
                 // Clear notification handlers
                 endpointInfo.NotificationHandlers.Clear();
-
-                // Detach from endpoint
-                endpointInfo.Endpoint.SetNotify(false).Wait();
-
-                // Remove endpoint
-                Endpoints.RemoveAt(listIndex);
             }
+
+            // Detach from endpoint, endpointInfo will be valid as otherwise lock statement will enforce
+            // that we will not reach this point
+            await endpointInfo.Endpoint.SetNotify(false);
         }
     }
 }
