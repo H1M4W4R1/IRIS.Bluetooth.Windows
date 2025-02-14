@@ -9,8 +9,10 @@ namespace IRIS.Bluetooth.Communication
     /// <summary>
     /// Represents bluetooth endpoint (service) we can connect to
     /// </summary>
-    public sealed class BluetoothEndpoint(BluetoothLEInterface bluetoothInterface,
-        GattDeviceService service, GattCharacteristic characteristic) 
+    public sealed class BLE_Endpoint(BluetoothLEInterface bluetoothInterface,
+        GattDeviceService service,
+        GattCharacteristic characteristic
+    )
     {
         public delegate void NotificationReceivedHandler(
             GattCharacteristic sender,
@@ -25,7 +27,7 @@ namespace IRIS.Bluetooth.Communication
         /// Interface to communicate with the device
         /// </summary>
         public BluetoothLEInterface Interface { get; } = bluetoothInterface;
-        
+
         /// <summary>
         /// UUID of the characteristic
         /// </summary>
@@ -40,6 +42,12 @@ namespace IRIS.Bluetooth.Communication
         /// Check if notifications are active
         /// </summary>
         public bool AreNotificationsActive { get; private set; }
+
+        /// <summary>
+        /// Check if notifications can be set
+        /// </summary>
+        public bool IsNotifyAvailable
+            => Characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify);
 
         /// <summary>
         /// Called when notification is received (must be set beforehand)
@@ -64,24 +72,24 @@ namespace IRIS.Bluetooth.Communication
             return status == GattCommunicationStatus.Success;
         }
 
-        public async Task<(bool, TObjectType?)>WriteWithResponse<TObjectType>()
+        public async Task<(bool, TObjectType?)> WriteWithResponse<TObjectType>()
         {
             IBuffer? buffer = await ReadRawValue();
             if (buffer == null) return (false, default);
             return buffer.Read<TObjectType>();
         }
-        
+
         /// <summary>
         /// Write data to the characteristic
         /// </summary>
         /// <returns>True if write was successful, false otherwise</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public async Task<bool> Write<TObjectType>(TObjectType data)
         {
             // Convert data to buffer
             IBuffer? buffer = data.ToBuffer();
             if (buffer == null) return false;
-            
+
             // Write data
             return await WriteRawValue(buffer);
         }
@@ -95,7 +103,7 @@ namespace IRIS.Bluetooth.Communication
             // Read raw value
             IBuffer? buffer = await ReadRawValue();
             if (buffer == null) return default;
-            
+
             // Read data
             (bool success, TObjectType? data) = buffer.Read<TObjectType>();
             return success ? data : default;
@@ -109,7 +117,7 @@ namespace IRIS.Bluetooth.Communication
             // Check if service supports notify
             if (!Characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify))
                 return false;
-            
+
             // Set notify
             GattCommunicationStatus status =
                 await Characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
@@ -121,8 +129,10 @@ namespace IRIS.Bluetooth.Communication
             if (status != GattCommunicationStatus.Success) return false;
 
             // Set notification handler
-            if (shallNotify) Characteristic.ValueChanged += OnNotificationReceivedHandler;
-            else Characteristic.ValueChanged -= OnNotificationReceivedHandler;
+            if (shallNotify)
+                Characteristic.ValueChanged += OnNotificationReceivedHandler;
+            else
+                Characteristic.ValueChanged -= OnNotificationReceivedHandler;
 
             AreNotificationsActive = shallNotify;
             return true;

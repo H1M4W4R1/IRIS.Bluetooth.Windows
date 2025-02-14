@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using Windows.Devices.Bluetooth;
-using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using IRIS.Bluetooth.Communication;
 using IRIS.Bluetooth.Data;
 using IRIS.Devices;
@@ -13,25 +12,15 @@ namespace IRIS.Bluetooth.Devices
     public abstract class BLE_DeviceBase : DeviceBase<BluetoothLEInterface>
     {
         /// <summary>
-        /// List of endpoints for the device
-        /// TODO: Combine those dictionaries and add boolean to check if endpoint is required to exist
-        ///       to allow simple check for endpoint existence after attaching
+        /// List of all known endpoints registered on this device
         /// </summary>
-        private Dictionary<uint, BluetoothEndpoint?> Endpoints { get; } =
-            new();
-
-        /// <summary>
-        /// List of notification handlers for the device
-        /// </summary>
-        private Dictionary<uint, List<BluetoothEndpoint.NotificationReceivedHandler>>
-            NotificationHandlers { get; } =
-            new();
+        private List<BLE_EndpointInfo> Endpoints { get; } = new();
 
         /// <summary>
         /// Determines if the device is connected
         /// </summary>
-        public BluetoothDeviceState DeviceState { get; private set; } 
-        
+        public BluetoothDeviceState DeviceState { get; private set; }
+
         /// <summary>
         /// Check if the device is connected
         /// </summary>
@@ -56,18 +45,20 @@ namespace IRIS.Bluetooth.Devices
         /// <summary>
         /// Used to detach from endpoints events
         /// </summary>
-        private async Task DetachOrUnloadAllEndpoints()
+        private void DetachOrUnloadAllEndpoints()
         {
             // Loop through all endpoints and detach from events
-            foreach (KeyValuePair<uint, BluetoothEndpoint?> endpoint in Endpoints)
-                await DetachOrUnloadEndpoint(endpoint.Key);
+            for (int index = 0; index < Endpoints.Count; index++)
+            {
+                DetachOrUnloadEndpoint(index);
+            }
         }
 
         public sealed override async Task<bool> Connect(CancellationToken cancellationToken = default)
         {
             // Check if device is already connected
             if (IsConnected) return true;
-            
+
             // Begin connection
             DeviceState = BluetoothDeviceState.Connecting;
 
@@ -78,13 +69,19 @@ namespace IRIS.Bluetooth.Devices
 
             // Connection successful
             DeviceState = BluetoothDeviceState.Connected;
-            
+
             // Handle disconnection
             HardwareAccess.OnDeviceDisconnected += HandleCommunicationFailed;
 
             // Attach to endpoints
             await AttachOrLoadEndpoints();
-            return true;
+
+            // Ensure that all required endpoints are attached
+            if (CheckIfAllRequiredEndpointsAreValid()) return true;
+            
+            // Disconnect if required endpoints are not attached
+            await Disconnect(cancellationToken);
+            return false;
         }
 
         /// <summary>
@@ -94,15 +91,14 @@ namespace IRIS.Bluetooth.Devices
         {
             // Begin disconnection
             DeviceState = BluetoothDeviceState.Disconnecting;
-            
+
             HardwareAccess.OnDeviceDisconnected -= HandleCommunicationFailed;
 
             // Detach from endpoints
-            await DetachOrUnloadAllEndpoints();
-            
+            DetachOrUnloadAllEndpoints();
+
             // Guarantee that all endpoints and notification handlers are cleared
             Endpoints.Clear();
-            NotificationHandlers.Clear();
 
             if (!await base.Disconnect(cancellationToken)) return false;
 
@@ -121,9 +117,39 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         /// <param name="endpointIndex">Endpoint index</param>
         /// <returns>Endpoint if found, null otherwise</returns>
-        protected BluetoothEndpoint? GetEndpoint(uint endpointIndex) =>
-            Endpoints.GetValueOrDefault(endpointIndex);
+        protected BLE_Endpoint? GetEndpoint(uint endpointIndex) => GetEndpointInfo(endpointIndex)?.Endpoint;
 
+        /// <summary>
+        /// Get endpoint info by index
+        /// </summary>
+        protected BLE_EndpointInfo? GetEndpointInfo(uint endpointIndex)
+        {
+            // Loop through all endpoints and find the one with the same index
+            foreach (BLE_EndpointInfo endpoint in Endpoints)
+            {
+                if (endpoint.EndpointIndex == endpointIndex)
+                    return endpoint;
+            }
+            
+            return null;
+        }
+
+        /// <summary>
+        /// Check if all required endpoints are attached / loaded
+        /// </summary>
+        /// <returns>True if all required endpoints are attached, false otherwise</returns>
+        protected bool CheckIfAllRequiredEndpointsAreValid()
+        {
+            // Loop through all endpoints and check if all required endpoints are attached
+            foreach (BLE_EndpointInfo endpoint in Endpoints)
+            {
+                if (endpoint is {Mode: EndpointMode.Required, Endpoint: null})
+                    return false;
+            }
+            
+            return true;
+        }
+        
         /// <summary>
         /// Attach to an endpoint
         /// </summary>
@@ -131,15 +157,19 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="endpointService">Service UUID</param>
         /// <param name="endpointCharacteristicIndex">Characteristic index</param>
         /// <param name="notificationHandler">Notification handler</param>
+        /// <param name="mode">Mode of the endpoint</param>
         /// <returns>True if successful, false otherwise</returns>
         protected async Task<bool> AttachEndpoint(
             uint endpointIndex,
             Guid endpointService,
             int endpointCharacteristicIndex,
-            BluetoothEndpoint.NotificationReceivedHandler notificationHandler)
+            BLE_Endpoint.NotificationReceivedHandler notificationHandler,
+            EndpointMode mode = EndpointMode.Required)
         {
-            BluetoothEndpoint? endpoint = await FindEndpoint(endpointService, endpointCharacteristicIndex);
-            return await _AttachEndpoint(endpointIndex, endpoint, notificationHandler);
+            BLE_Endpoint? endpoint =
+                await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
+            
+            return _AttachEndpoint(endpointIndex, endpoint, notificationHandler);
         }
 
         /// <summary>
@@ -149,199 +179,150 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="endpointService">Service UUID</param>
         /// <param name="endpointCharacteristic">Characteristic UUID</param>
         /// <param name="notificationHandler">Notification handler</param>
+        /// <param name="mode">Mode of the endpoint</param>
         /// <returns>True if successful, false otherwise</returns>
         protected async Task<bool> AttachEndpoint(
             uint endpointIndex,
             Guid endpointService,
             Guid endpointCharacteristic,
-            BluetoothEndpoint.NotificationReceivedHandler notificationHandler)
+            BLE_Endpoint.NotificationReceivedHandler notificationHandler,
+            EndpointMode mode = EndpointMode.Required)
         {
             // Get endpoint
-            BluetoothEndpoint? endpoint = await FindEndpoint(endpointService, endpointCharacteristic);
-            return await _AttachEndpoint(endpointIndex, endpoint, notificationHandler);
-        }
-
-        /// <summary>
-        /// Detach from an endpoint
-        /// </summary>
-        /// <param name="endpointIndex">Index of the endpoint</param>
-        private async Task DetachOrUnloadEndpoint(uint endpointIndex)
-        {
-            // Check if endpoint exists
-            if (!Endpoints.TryGetValue(endpointIndex, out BluetoothEndpoint? endpoint)) return;
-
-            // Check if endpoint is null
-            if (endpoint == null) return;
-
-            // Get notifications
-            if (NotificationHandlers.TryGetValue(endpointIndex,
-                    out List<BluetoothEndpoint.NotificationReceivedHandler>? notificationHandlers))
-            {
-                // We found notification handlers, so we need to detach them
-                foreach (BluetoothEndpoint.NotificationReceivedHandler notificationHandler in notificationHandlers)
-                    endpoint.NotificationReceived -= notificationHandler;
-                
-                // Clear notification handlers
-                NotificationHandlers.Remove(endpointIndex);
-            }
+            BLE_Endpoint? endpoint = await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
             
-            // Detach from endpoint
-            await endpoint.SetNotify(false);
-            
-            // Remove endpoint
-            Endpoints.Remove(endpointIndex);
+            return _AttachEndpoint(endpointIndex, endpoint, notificationHandler);
         }
 
         /// <summary>
         /// Internal method to attach to an endpoint
         /// </summary>
-        private async Task<bool> _AttachEndpoint(
+        private bool _AttachEndpoint(
             uint endpointIndex,
-            BluetoothEndpoint? endpoint,
-            BluetoothEndpoint.NotificationReceivedHandler notificationHandler)
+            BLE_Endpoint? endpoint,
+            BLE_Endpoint.NotificationReceivedHandler notificationHandler,
+            EndpointMode mode = EndpointMode.Required)
         {
-            // Check if endpoint already exists
-            if (!Endpoints.TryAdd(endpointIndex, endpoint))
+            lock (Endpoints)
             {
-                // Update endpoint if it is not null and the current endpoint is null
-                if (endpoint != null && Endpoints[endpointIndex] == null)
-                    Endpoints[endpointIndex] = endpoint;
-                else
+                // Check if endpoint already exists add notification handler and return
+                BLE_EndpointInfo foundEndpoint = Endpoints.FirstOrDefault(x => x.EndpointIndex == endpointIndex);
+                if (foundEndpoint.Endpoint is {IsNotifyAvailable: true})
                 {
-                    Debug.WriteLine($"Endpoint {endpointIndex} already exists on device {GetType().Name}");
-                    return false;
+                    foundEndpoint.AddNotificationHandler(notificationHandler);
+                    return true;
                 }
-            }
 
-            // Attach to endpoint events if endpoint is not null and supports notify
-            if (endpoint == null || !await endpoint.SetNotify(true)) return false;
-            endpoint.NotificationReceived += notificationHandler;
-            
-            // Register notification handler
-            if (!NotificationHandlers.ContainsKey(endpointIndex))
-                NotificationHandlers.Add(endpointIndex, new List<BluetoothEndpoint.NotificationReceivedHandler>());
-            NotificationHandlers[endpointIndex].Add(notificationHandler);
-            return true;
+                // Endpoint exists but does not support notifications
+                if (foundEndpoint.Endpoint != null) return false;
+
+                // Add endpoint
+                _LoadEndpoint(endpointIndex, endpoint, mode);
+
+                // Attach notification handler
+                Endpoints[^1].AddNotificationHandler(notificationHandler);
+                return true;
+            }
         }
 
         /// <summary>
-        /// Load endpoint
+        /// Load endpoint, if you want to attach to notifications, use AttachEndpoint instead
+        /// </summary>
+        /// <param name="endpointIndex">Index of the endpoint</param>
+        /// <param name="endpointService">Service UUID</param>
+        /// <param name="endpointCharacteristicIndex">Characteristic index</param>
+        /// <param name="mode">Mode of the endpoint</param>
+        protected async Task LoadEndpoint(
+            uint endpointIndex,
+            Guid endpointService,
+            int endpointCharacteristicIndex,
+            EndpointMode mode = EndpointMode.Required)
+        {
+            BLE_Endpoint? endpoint =
+                await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
+            
+            _LoadEndpoint(endpointIndex, endpoint, mode);
+        }
+
+        /// <summary>
+        /// Load endpoint, if you want to attach to notifications, use AttachEndpoint instead
         /// </summary>
         /// <param name="endpointIndex">Index of the endpoint</param>
         /// <param name="endpointService">Service UUID</param>
         /// <param name="endpointCharacteristic">Characteristic UUID</param>
-        protected async Task LoadEndpoint(uint endpointIndex, Guid endpointService, Guid endpointCharacteristic)
+        /// <param name="mode">Mode of the endpoint</param>
+        protected async Task LoadEndpoint(uint endpointIndex, Guid endpointService, Guid endpointCharacteristic,
+            EndpointMode mode = EndpointMode.Required)
         {
             // Get endpoint
-            BluetoothEndpoint? endpoint = await FindEndpoint(endpointService, endpointCharacteristic);
+            BLE_Endpoint? endpoint = await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
 
             // Load endpoint
-            await LoadEndpoint(endpointIndex, endpoint);
+            _LoadEndpoint(endpointIndex, endpoint, mode);
         }
 
         /// <summary>
         /// Internal method to load an endpoint
         /// </summary>
-        protected Task LoadEndpoint(uint endpointIndex, BluetoothEndpoint? endpoint)
+        private void _LoadEndpoint(uint endpointIndex, BLE_Endpoint? endpoint, EndpointMode mode = EndpointMode.Required)
         {
-            // Check if endpoint already exists
-            if (!Endpoints.TryAdd(endpointIndex, endpoint))
+            // If no endpoint with same ID exists add it
+            if (Endpoints.All(x => x.EndpointIndex != endpointIndex))
             {
-                // Update endpoint if it is not null and the current endpoint is null
-                if (endpoint != null && Endpoints[endpointIndex] == null)
-                    Endpoints[endpointIndex] = endpoint;
-                else
-                    Debug.WriteLine($"Endpoint {endpointIndex} already exists on device {GetType().Name}");
+                Endpoints.Add(new BLE_EndpointInfo(endpointIndex, endpoint, mode));
+                return;
             }
-
-            return Task.CompletedTask;
+            
+            // Search for first existing endpoint and replace it
+            // if endpoint is null
+            for (int i = 0; i < Endpoints.Count; i++)
+            {
+                if (Endpoints[i].EndpointIndex == endpointIndex && Endpoints[i].Endpoint == null)
+                {
+                    Endpoints[i] = new BLE_EndpointInfo(endpointIndex, endpoint, mode);
+                    return;
+                }
+                else
+                {
+                    Debug.WriteLine("Endpoint with same index already exists");
+                }
+            }
         }
 
         /// <summary>
-        /// Searches for a service on the device
+        /// Detach from an endpoint
         /// </summary>
-        /// <param name="serviceUUID">Service UUID</param>
-        /// <returns>Service if found, null otherwise</returns>
-        private async Task<GattDeviceService?> FindService(Guid serviceUUID)
+        /// <param name="listIndex">Index of the endpoint in endpoints list</param>
+        private void DetachOrUnloadEndpoint(int listIndex)
         {
-            // Check if interface is connected
-            if (!HardwareAccess.IsConnected) return null;
+            lock (Endpoints)
+            {
+                // Check if endpoint exists
+                if (listIndex < 0 || listIndex >= Endpoints.Count) return;
 
-            // Check if interface has valid device
-            if (HardwareAccess.ConnectedDevice == null) return null;
+                // Get endpoint info
+                BLE_EndpointInfo endpointInfo = Endpoints[listIndex];
 
-            // Get all services for device
-            GattDeviceServicesResult services = await HardwareAccess.ConnectedDevice.GetGattServicesAsync();
+                // Check if endpoint exists
+                if (endpointInfo.Endpoint == null) return;
 
-            // Check if services are valid
-            if (services.Status != GattCommunicationStatus.Success) return null;
 
-            // Get the service with the correct UUID
-            GattDeviceService? service = services.Services.FirstOrDefault(s => s.Uuid == serviceUUID);
+                // We found notification handlers, so we need to detach them
+                foreach (BLE_Endpoint.NotificationReceivedHandler notificationHandler in endpointInfo
+                             .NotificationHandlers)
+                {
+                    endpointInfo.Endpoint.NotificationReceived -= notificationHandler;
+                }
 
-            // Check if service is valid
-            return service == null ? null : service;
-        }
+                // Clear notification handlers
+                endpointInfo.NotificationHandlers.Clear();
 
-        /// <summary>
-        /// Find the endpoint on a Bluetooth device
-        /// </summary>
-        /// <param name="serviceUUID">Service UUID</param>
-        /// <param name="endpointIndex">Characteristic index</param>
-        /// <returns>Endpoint if found, null otherwise</returns>
-        private async Task<BluetoothEndpoint?> FindEndpoint(
-            Guid serviceUUID,
-            int endpointIndex)
-        {
-            // Get service
-            GattDeviceService? service = await FindService(serviceUUID);
+                // Detach from endpoint
+                endpointInfo.Endpoint.SetNotify(false).Wait();
 
-            // Check if service is valid
-            if (service == null) return null;
-
-            // Get all characteristics for service
-            GattCharacteristicsResult characteristics = await service.GetCharacteristicsAsync();
-
-            // Check if characteristics are valid
-            if (characteristics.Status != GattCommunicationStatus.Success) return null;
-
-            // Get the characteristic with the correct index
-            GattCharacteristic? characteristic = characteristics.Characteristics.ElementAtOrDefault(endpointIndex);
-
-            // Check if characteristic is valid
-            return characteristic == null ? null : new BluetoothEndpoint(HardwareAccess, service, characteristic);
-        }
-
-        /// <summary>
-        /// Get the endpoint on a Bluetooth device
-        /// </summary>
-        /// <param name="serviceUUID">Service UUID</param>
-        /// <param name="characteristicUUID">Characteristic UUID</param>
-        /// <returns>Endpoint if found, null otherwise</returns>
-        private async Task<BluetoothEndpoint?> FindEndpoint(
-            Guid serviceUUID,
-            Guid characteristicUUID)
-        {
-            // Get service
-            GattDeviceService? service = await FindService(serviceUUID);
-
-            // Check if service is valid
-            if (service == null) return null;
-
-            // Get all characteristics for service
-            GattCharacteristicsResult characteristics = await service.GetCharacteristicsAsync();
-
-            // Check if characteristics are valid
-            if (characteristics.Status != GattCommunicationStatus.Success) return null;
-
-            // Get the characteristic with the correct UUID
-            GattCharacteristic? characteristic =
-                characteristics.Characteristics.FirstOrDefault(c => c.Uuid == characteristicUUID);
-
-            // Check if characteristic is valid
-            return characteristic == null
-                ? null
-                : new BluetoothEndpoint(HardwareAccess, service, characteristic);
+                // Remove endpoint
+                Endpoints.RemoveAt(listIndex);
+            }
         }
     }
 }

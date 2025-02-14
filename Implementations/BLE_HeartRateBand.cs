@@ -24,20 +24,18 @@ namespace IRIS.Bluetooth.Implementations
         /// </summary>
         public event HeartRateReceivedHandler OnHeartRateReceived = delegate { };
 
-        private BluetoothEndpoint? HeartRateEndpoint { get; set; }
+        private BLE_Endpoint? HeartRateEndpoint { get; set; }
 
         protected override async Task AttachOrLoadEndpoints()
         {
             // Attach the heart rate endpoint
             // we don't need to notify interface for disconnection as
             // it will be automatically handled in endpoint methods
-            await AttachEndpoint(HEART_RATE_ENDPOINT_ID, GattServiceUuids.HeartRate,
+            await AttachEndpoint(HEART_RATE_ENDPOINT_ID, GattServiceUuids.BloodPressure,
                 HEART_RATE_CHARACTERISTIC_INDEX, HandleHeartRateNotification);
 
             // Get the heart rate endpoint
             HeartRateEndpoint = GetEndpoint(HEART_RATE_ENDPOINT_ID);
-            
-            // TODO: Check if endpoints are attached
         }
 
         /// <summary>
