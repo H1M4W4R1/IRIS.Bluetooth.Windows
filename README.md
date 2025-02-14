@@ -1,6 +1,6 @@
 ﻿# IRIS<sup>2</sup>: Intermediate Resource Integration System - Bluetooth for Windows Package
 ## Introduction
-This is an IRIS subpackage for Bluetooth communication on
+This is an [IRIS<sup>2</sup>](https://github.com/H1M4W4R1/IRIS) subpackage for Bluetooth communication on
 Windows.
 
 ## Devices Abstractions

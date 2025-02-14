@@ -225,6 +225,9 @@ namespace IRIS.Bluetooth.Devices
             }
         }
 
+        // TODO: Load any endpoint by GUID or GUID pair (service:endpoint)
+        // TODO: Attach to any endpoint by GUID or GUID pair (service:endpoint)
+        
         /// <summary>
         /// Load endpoint, if you want to attach to notifications, use AttachEndpoint instead
         /// </summary>
