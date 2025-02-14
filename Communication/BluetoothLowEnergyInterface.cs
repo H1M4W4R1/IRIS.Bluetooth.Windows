@@ -38,6 +38,11 @@ namespace IRIS.Bluetooth.Communication
         public bool IsConnected => ConnectedDevice != null || DeviceBluetoothAddress != 0;
 
         /// <summary>
+        /// Get name of the connected device
+        /// </summary>
+        public string DeviceName => ConnectedDevice?.Name ?? "None";
+
+        /// <summary>
         /// Device watcher for scanning for devices
         /// </summary>
         private readonly BluetoothLEAdvertisementWatcher _watcher;
