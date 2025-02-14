@@ -6,7 +6,7 @@ namespace IRIS.Bluetooth.Addressing
     /// <summary>
     /// Bluetooth device address
     /// </summary>
-    public interface IBluetoothLEAddress
+    public interface IBluetoothLowEnergyAddress
     {
         /// <summary>
         /// Get the advertisement filter for this address

@@ -30,7 +30,7 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Service address to connect to
         /// </summary>
-        public IBluetoothLEAddress DeviceAddress { get; init; }
+        public IBluetoothLowEnergyAddress DeviceAddress { get; init; }
 
         /// <summary>
         /// True if connected to device, false otherwise
@@ -97,7 +97,7 @@ namespace IRIS.Bluetooth.Communication
         public BluetoothLowEnergyInterface(string deviceNameRegex)
         {
             // Create new service address
-            DeviceAddress = new BluetoothLENameAddress(deviceNameRegex);
+            DeviceAddress = new BluetoothLowEnergyNameAddress(deviceNameRegex);
 
             // Create new watcher for service address
             _watcher = new BluetoothLEAdvertisementWatcher()
@@ -114,7 +114,7 @@ namespace IRIS.Bluetooth.Communication
         public BluetoothLowEnergyInterface(Guid serviceAddress)
         {
             // Create new service address
-            DeviceAddress = new BluetoothLEServiceAddress(serviceAddress);
+            DeviceAddress = new BluetoothLowEnergyServiceAddress(serviceAddress);
 
             // Create new watcher for service address
             _watcher = new BluetoothLEAdvertisementWatcher()

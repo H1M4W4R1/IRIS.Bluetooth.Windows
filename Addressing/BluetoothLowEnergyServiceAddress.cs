@@ -8,7 +8,7 @@ namespace IRIS.Bluetooth.Addressing
     /// Represents a Bluetooth LE service address
     /// Can also match device name using regular expression
     /// </summary>
-    public readonly struct BluetoothLEServiceAddress : IBluetoothLEAddress
+    public readonly struct BluetoothLowEnergyServiceAddress : IBluetoothLowEnergyAddress
     {
         private readonly BluetoothLEAdvertisementFilter _cachedAdvertisementFilter;
         private readonly BluetoothSignalStrengthFilter _cachedSignalStrengthFilter;
@@ -58,7 +58,7 @@ namespace IRIS.Bluetooth.Addressing
         /// <summary>
         /// Constructor
         /// </summary>
-        public BluetoothLEServiceAddress(
+        public BluetoothLowEnergyServiceAddress(
             Guid serviceUUID,
             short minSignalStrength = -75,
             short maxSignalStrength = -70,

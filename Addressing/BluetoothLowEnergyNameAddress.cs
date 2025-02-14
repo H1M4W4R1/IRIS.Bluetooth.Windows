@@ -4,7 +4,7 @@ using Windows.Devices.Bluetooth.Advertisement;
 
 namespace IRIS.Bluetooth.Addressing
 {
-    public struct BluetoothLENameAddress : IBluetoothLEAddress
+    public readonly struct BluetoothLowEnergyNameAddress : IBluetoothLowEnergyAddress
     {
         private readonly BluetoothLEAdvertisementFilter _cachedAdvertisementFilter;
         private readonly BluetoothSignalStrengthFilter _cachedSignalStrengthFilter;
@@ -27,7 +27,7 @@ namespace IRIS.Bluetooth.Addressing
                                         && Regex.IsMatch(name, regex));
         }
 
-        public BluetoothLENameAddress(string deviceNameRegex)
+        public BluetoothLowEnergyNameAddress(string deviceNameRegex)
         {
             NameRegex = deviceNameRegex;
             

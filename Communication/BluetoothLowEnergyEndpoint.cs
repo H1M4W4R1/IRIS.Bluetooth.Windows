@@ -21,7 +21,7 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// List of allowed service addresses
         /// </summary>
-        public BluetoothLEServiceAddress ServiceAddress { get; } = new(service.Uuid);
+        public BluetoothLowEnergyServiceAddress ServiceAddress { get; } = new(service.Uuid);
 
         /// <summary>
         /// Interface to communicate with the device
