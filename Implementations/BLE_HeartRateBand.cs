@@ -37,7 +37,7 @@ namespace IRIS.Bluetooth.Implementations
             // Get the heart rate endpoint
             HeartRateEndpoint = GetEndpoint(HEART_RATE_ENDPOINT_ID);
             
-            // Check if endpoints are attached
+            // TODO: Check if endpoints are attached
         }
 
         /// <summary>
