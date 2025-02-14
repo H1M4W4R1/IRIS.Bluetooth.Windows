@@ -36,7 +36,7 @@ namespace IRIS.Bluetooth.Addressing
         /// <summary>
         /// Check if the device is valid for this service
         /// </summary>
-        public async Task<bool> IsDeviceValid(BluetoothLEDevice device)
+        public async ValueTask<bool> IsDeviceValid(BluetoothLEDevice device)
         {
             // Cache service UUID because C#...
             Guid uuid = ServiceUUID;

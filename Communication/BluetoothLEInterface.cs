@@ -45,7 +45,7 @@ namespace IRIS.Bluetooth.Communication
         public event DeviceConnected OnDeviceConnected = delegate { };
         public event DeviceDisconnected OnDeviceDisconnected = delegate { };
 
-        public async Task<bool> Connect(CancellationToken cancellationToken = default)
+        public async ValueTask<bool> Connect(CancellationToken cancellationToken = default)
         {
             // Check if device is already connected
             if (IsConnected) return true;
@@ -68,10 +68,10 @@ namespace IRIS.Bluetooth.Communication
             return true;
         }
 
-        public Task<bool> Disconnect(CancellationToken cancellationToken = default)
+        public ValueTask<bool> Disconnect(CancellationToken cancellationToken = default)
         {
             // Check if device is connected, if not - return
-            if (!IsConnected) return Task.FromResult(true);
+            if (!IsConnected) return ValueTask.FromResult(true);
 
             lock (ConnectedDevices)
             {
@@ -80,7 +80,7 @@ namespace IRIS.Bluetooth.Communication
                 DeviceBluetoothAddress = 0;
 
                 // Disconnect from device if connected
-                if (ConnectedDevice == null) return Task.FromResult(true);
+                if (ConnectedDevice == null) return ValueTask.FromResult(true);
 
                 // Send events
                 OnDeviceDisconnected(DeviceBluetoothAddress, ConnectedDevice);
@@ -88,7 +88,7 @@ namespace IRIS.Bluetooth.Communication
                 ConnectedDevice = null;
             }
 
-            return Task.FromResult(true);
+            return ValueTask.FromResult(true);
         }
 
         /// <summary>
@@ -165,7 +165,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">Service UUID</param>
         /// <param name="characteristicUUID">Characteristic UUID</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async Task<BLE_Endpoint?> FindEndpoint(Guid serviceUUID, Guid characteristicUUID)
+        public async ValueTask<BLE_Endpoint?> FindEndpoint(Guid serviceUUID, Guid characteristicUUID)
         {
             // Get service
             GattDeviceService? service = await GetService(serviceUUID);
@@ -183,7 +183,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicUUID">UUID of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async Task<BLE_Endpoint?> FindEndpoint(GattDeviceService? service, Guid characteristicUUID)
+        public async ValueTask<BLE_Endpoint?> FindEndpoint(GattDeviceService? service, Guid characteristicUUID)
         {
             // Get service
             if (service == null) return null;
@@ -204,7 +204,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">UUID of the service</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async Task<BLE_Endpoint?> FindEndpoint(Guid serviceUUID, int characteristicIndex)
+        public async ValueTask<BLE_Endpoint?> FindEndpoint(Guid serviceUUID, int characteristicIndex)
         {
             // Get service
             GattDeviceService? service = await GetService(serviceUUID);
@@ -222,7 +222,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async Task<BLE_Endpoint?> FindEndpoint(GattDeviceService? service, int characteristicIndex)
+        public async ValueTask<BLE_Endpoint?> FindEndpoint(GattDeviceService? service, int characteristicIndex)
         {
             // Get service
             if (service == null) return null;
@@ -243,7 +243,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">UUID of the service</param>
         /// <param name="characteristicUUID">UUID of the characteristic</param>
         /// <returns>Characteristic or null if not found</returns>
-        public async Task<GattCharacteristic?> GetCharacteristic(Guid serviceUUID, Guid characteristicUUID)
+        public async ValueTask<GattCharacteristic?> GetCharacteristic(Guid serviceUUID, Guid characteristicUUID)
         {
             // Check if device is connected
             if (!IsConnected) return null;
@@ -258,7 +258,7 @@ namespace IRIS.Bluetooth.Communication
             return await GetCharacteristic(service, characteristicUUID);
         }
 
-        public async Task<GattCharacteristic?> GetCharacteristic(
+        public async ValueTask<GattCharacteristic?> GetCharacteristic(
             GattDeviceService service,
             Guid characteristicUUID)
         {
@@ -282,7 +282,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">UUID of the service</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Characteristic or null if not found</returns>
-        public async Task<GattCharacteristic?> GetCharacteristic(Guid serviceUUID, int characteristicIndex)
+        public async ValueTask<GattCharacteristic?> GetCharacteristic(Guid serviceUUID, int characteristicIndex)
         {
             // Get service
             GattDeviceService? service = await GetService(serviceUUID);
@@ -300,7 +300,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Characteristic or null if not found</returns>
-        public async Task<GattCharacteristic?> GetCharacteristic(
+        public async ValueTask<GattCharacteristic?> GetCharacteristic(
             GattDeviceService service,
             int characteristicIndex)
         {
@@ -329,7 +329,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">Service UUID</param>
         /// <param name="characteristicUUID">Characteristic UUID</param>
         /// <returns>List of characteristics or null if not found</returns>
-        public async Task<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristicsFor(
+        public async ValueTask<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristicsFor(
             Guid serviceUUID,
             Guid characteristicUUID)
         {
@@ -346,7 +346,7 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Get all characteristics from service for specified UUID
         /// </summary>
-        public async Task<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristicsFor(
+        public async ValueTask<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristicsFor(
             GattDeviceService service,
             Guid characteristicUUID)
         {
@@ -361,7 +361,7 @@ namespace IRIS.Bluetooth.Communication
             switch (characteristic.Status)
             {
                 case GattCommunicationStatus.Unreachable:
-                    await Disconnect();
+                    Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
                 default: return null;
@@ -376,7 +376,7 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <param name="serviceUUID">UUID of the service</param>
         /// <returns>List of characteristics or null if not found</returns>
-        public async Task<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristics(Guid serviceUUID)
+        public async ValueTask<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristics(Guid serviceUUID)
         {
             GattDeviceService? service = await GetService(serviceUUID);
 
@@ -392,7 +392,7 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <param name="service">Service to get characteristics from</param>
         /// <returns>List of characteristics or null if not found</returns>
-        public async Task<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristics(GattDeviceService service)
+        public async ValueTask<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristics(GattDeviceService service)
         {
             // Check if device is connected
             if (!IsConnected) return null;
@@ -404,7 +404,7 @@ namespace IRIS.Bluetooth.Communication
             switch (characteristics.Status)
             {
                 case GattCommunicationStatus.Unreachable:
-                    await Disconnect();
+                    Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
                 default: return null;
@@ -419,7 +419,7 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <param name="serviceUUID">UUID of the service</param>
         /// <returns>Service or null if not found</returns>
-        public async Task<GattDeviceService?> GetService(Guid serviceUUID)
+        public async ValueTask<GattDeviceService?> GetService(Guid serviceUUID)
         {
             // Check if device is connected
             if (!IsConnected) return null;
@@ -439,7 +439,7 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <param name="serviceUUID">UUID of the service</param>
         /// <returns>List of services</returns>
-        public async Task<IReadOnlyList<GattDeviceService>?> GetServices(Guid serviceUUID)
+        public async ValueTask<IReadOnlyList<GattDeviceService>?> GetServices(Guid serviceUUID)
         {
             // Check if device is connected
             if (!IsConnected) return null;
@@ -454,7 +454,7 @@ namespace IRIS.Bluetooth.Communication
             switch (services.Status)
             {
                 case GattCommunicationStatus.Unreachable:
-                    await Disconnect();
+                    Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
                 default: return null;

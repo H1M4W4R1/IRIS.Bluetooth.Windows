@@ -39,8 +39,8 @@ namespace IRIS.Bluetooth.Devices
         /// <summary>
         /// Used to attach to endpoints events
         /// </summary>
-        protected virtual Task AttachOrLoadEndpoints()
-            => Task.CompletedTask;
+        protected virtual ValueTask AttachOrLoadEndpoints()
+            => ValueTask.CompletedTask;
 
         /// <summary>
         /// Used to detach from endpoints events
@@ -54,7 +54,7 @@ namespace IRIS.Bluetooth.Devices
             }
         }
 
-        public sealed override async Task<bool> Connect(CancellationToken cancellationToken = default)
+        public sealed override async ValueTask<bool> Connect(CancellationToken cancellationToken = default)
         {
             // Check if device is already connected
             if (IsConnected) return true;
@@ -87,7 +87,7 @@ namespace IRIS.Bluetooth.Devices
         /// <summary>
         /// Disconnect from the device
         /// </summary>
-        public sealed override async Task<bool> Disconnect(CancellationToken cancellationToken = default)
+        public sealed override async ValueTask<bool> Disconnect(CancellationToken cancellationToken = default)
         {
             // Begin disconnection
             DeviceState = BluetoothDeviceState.Disconnecting;
@@ -159,7 +159,7 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="notificationHandler">Notification handler</param>
         /// <param name="mode">Mode of the endpoint</param>
         /// <returns>True if successful, false otherwise</returns>
-        protected async Task<bool> AttachEndpoint(
+        protected async ValueTask<bool> AttachEndpoint(
             uint endpointIndex,
             Guid endpointService,
             int endpointCharacteristicIndex,
@@ -181,7 +181,7 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="notificationHandler">Notification handler</param>
         /// <param name="mode">Mode of the endpoint</param>
         /// <returns>True if successful, false otherwise</returns>
-        protected async Task<bool> AttachEndpoint(
+        protected async ValueTask<bool> AttachEndpoint(
             uint endpointIndex,
             Guid endpointService,
             Guid endpointCharacteristic,
@@ -235,7 +235,7 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="endpointService">Service UUID</param>
         /// <param name="endpointCharacteristicIndex">Characteristic index</param>
         /// <param name="mode">Mode of the endpoint</param>
-        protected async Task LoadEndpoint(
+        protected async ValueTask LoadEndpoint(
             uint endpointIndex,
             Guid endpointService,
             int endpointCharacteristicIndex,
@@ -254,7 +254,7 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="endpointService">Service UUID</param>
         /// <param name="endpointCharacteristic">Characteristic UUID</param>
         /// <param name="mode">Mode of the endpoint</param>
-        protected async Task LoadEndpoint(uint endpointIndex, Guid endpointService, Guid endpointCharacteristic,
+        protected async ValueTask LoadEndpoint(uint endpointIndex, Guid endpointService, Guid endpointCharacteristic,
             EndpointMode mode = EndpointMode.Required)
         {
             // Get endpoint

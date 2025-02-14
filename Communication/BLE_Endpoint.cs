@@ -57,7 +57,7 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Read value from the characteristic
         /// </summary>
-        private async Task<IBuffer?> ReadRawValue()
+        private async ValueTask<IBuffer?> ReadRawValue()
         {
             GattReadResult result = await Characteristic.ReadValueAsync();
             return result.Status != GattCommunicationStatus.Success ? null : result.Value;
@@ -66,13 +66,13 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Write value to the characteristic
         /// </summary>
-        private async Task<bool> WriteRawValue(IBuffer buffer)
+        private async ValueTask<bool> WriteRawValue(IBuffer buffer)
         {
             GattCommunicationStatus status = await Characteristic.WriteValueAsync(buffer);
             return status == GattCommunicationStatus.Success;
         }
 
-        public async Task<(bool, TObjectType?)> WriteWithResponse<TObjectType>()
+        public async ValueTask<(bool, TObjectType?)> WriteWithResponse<TObjectType>()
         {
             IBuffer? buffer = await ReadRawValue();
             if (buffer == null) return (false, default);
@@ -84,7 +84,7 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <returns>True if write was successful, false otherwise</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async Task<bool> Write<TObjectType>(TObjectType data)
+        public async ValueTask<bool> Write<TObjectType>(TObjectType data)
         {
             // Convert data to buffer
             IBuffer? buffer = data.ToBuffer();
@@ -98,7 +98,7 @@ namespace IRIS.Bluetooth.Communication
         /// Read data from the characteristic
         /// </summary>
         /// <returns>Value of the characteristic or null if type is not supported or read failed</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public async Task<TObjectType?> ReadData<TObjectType>()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)] public async ValueTask<TObjectType?> ReadData<TObjectType>()
         {
             // Read raw value
             IBuffer? buffer = await ReadRawValue();
@@ -112,7 +112,7 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Set notify for this characteristic
         /// </summary>
-        public async Task<bool> SetNotify(bool shallNotify)
+        public async ValueTask<bool> SetNotify(bool shallNotify)
         {
             // Check if service supports notify
             if (!Characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify))

@@ -26,7 +26,7 @@ namespace IRIS.Bluetooth.Implementations
 
         private BLE_Endpoint? HeartRateEndpoint { get; set; }
 
-        protected override async Task AttachOrLoadEndpoints()
+        protected override async ValueTask AttachOrLoadEndpoints()
         {
             // Attach the heart rate endpoint
             // we don't need to notify interface for disconnection as
