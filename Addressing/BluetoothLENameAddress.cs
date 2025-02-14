@@ -35,7 +35,7 @@ namespace IRIS.Bluetooth.Addressing
             _cachedAdvertisementFilter = new BluetoothLEAdvertisementFilter
             {
                 // We are looking for any advertisement
-                Advertisement = new BluetoothLEAdvertisement { }
+                Advertisement = new BluetoothLEAdvertisement()
             };
             
             _cachedSignalStrengthFilter = new BluetoothSignalStrengthFilter

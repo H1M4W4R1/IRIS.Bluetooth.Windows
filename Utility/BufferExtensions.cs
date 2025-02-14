@@ -1,5 +1,4 @@
 ﻿using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Storage.Streams;
 
 namespace IRIS.Bluetooth.Utility
