@@ -9,7 +9,7 @@ namespace IRIS.Bluetooth.Communication
     /// <summary>
     /// Represents bluetooth endpoint (service) we can connect to
     /// </summary>
-    public sealed class BLE_Endpoint(BluetoothLEInterface bluetoothInterface,
+    public sealed class BluetoothLowEnergyEndpoint(BluetoothLowEnergyInterface bluetoothInterface,
         GattDeviceService service,
         GattCharacteristic characteristic
     )
@@ -26,7 +26,7 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Interface to communicate with the device
         /// </summary>
-        public BluetoothLEInterface Interface { get; } = bluetoothInterface;
+        public BluetoothLowEnergyInterface Interface { get; } = bluetoothInterface;
 
         /// <summary>
         /// UUID of the characteristic

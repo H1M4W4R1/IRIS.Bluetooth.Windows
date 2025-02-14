@@ -9,7 +9,7 @@ namespace IRIS.Bluetooth.Implementations
     /// Heart Rate Band Bluetooth Low Energy device.
     /// Uses the HeartRate GATT service.
     /// </summary>
-    public sealed class BLE_HeartRateBand() : BLE_DeviceBase(GattServiceUuids.HeartRate)
+    public sealed class BluetoothLowEnergyHeartRateBand() : BluetoothLowEnergyDeviceBase(GattServiceUuids.HeartRate)
     {
         private const int HEART_RATE_ENDPOINT_ID = 0;
         private const int HEART_RATE_CHARACTERISTIC_INDEX = 0;
@@ -24,7 +24,7 @@ namespace IRIS.Bluetooth.Implementations
         /// </summary>
         public event HeartRateReceivedHandler OnHeartRateReceived = delegate { };
 
-        private BLE_Endpoint? HeartRateEndpoint { get; set; }
+        private BluetoothLowEnergyEndpoint? HeartRateEndpoint { get; set; }
 
         protected override async ValueTask AttachOrLoadEndpoints()
         {

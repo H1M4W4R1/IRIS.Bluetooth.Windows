@@ -4,7 +4,7 @@ This is an [IRIS<sup>2</sup>](https://github.com/H1M4W4R1/IRIS) subpackage for B
 Windows.
 
 ## Devices Abstractions
-### BLE_DeviceBase
+### BluetoothLowEnergyDeviceBase
 Device used to communicate with BLE devices. Requires
 BLE to be present on the system and uses WinRT API to
 perform operations.
@@ -20,29 +20,29 @@ change, especially initialization of endpoints
 
 Examples:
 ```cs
-public sealed class BLE_MyDevice() :
-    BLE_DeviceBase(GattServiceUuids.HeartRate)
+public sealed class BluetoothLowEnergyMyDevice() :
+    BluetoothLowEnergyDeviceBase(GattServiceUuids.HeartRate)
 {
     // Code
 }
 ```
 
 ```cs
-public sealed class BLE_MyDevice() :
-    BLE_DeviceBase("DEVICE-.*")
+public sealed class BluetoothLowEnergyMyDevice() :
+    BluetoothLowEnergyDeviceBase("DEVICE-.*")
 {
     // Code
 }
 ```
 
 ## Communication Interfaces
-### BluetoothLEInterface
+### BluetoothLowEnergyInterface
 Interface used to communicate with BLE devices. Uses WinRT
 API to perform operations. Handles most communication
 and is not recommended to be used directly.
 
 ## Included Examples
-### BLE_HeartRateBand
+### BluetoothLowEnergyHeartRateBand
 Example device implementation for BLE heart rate band that
 connects to device with Heart Rate service.
 

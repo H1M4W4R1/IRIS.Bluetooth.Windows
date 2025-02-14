@@ -9,7 +9,7 @@ namespace IRIS.Bluetooth.Communication
     /// <summary>
     /// Base Interface for Bluetooth Low Energy communication
     /// </summary>
-    public sealed class BluetoothLEInterface : ICommunicationInterface
+    public sealed class BluetoothLowEnergyInterface : ICommunicationInterface
     {
         /// <summary>
         /// Address of current device
@@ -94,7 +94,7 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Create Bluetooth Low Energy interface for given device name (use regex to match wildcards)
         /// </summary>
-        public BluetoothLEInterface(string deviceNameRegex)
+        public BluetoothLowEnergyInterface(string deviceNameRegex)
         {
             // Create new service address
             DeviceAddress = new BluetoothLENameAddress(deviceNameRegex);
@@ -111,7 +111,7 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Create Bluetooth Low Energy interface for given service addresses
         /// </summary>
-        public BluetoothLEInterface(Guid serviceAddress)
+        public BluetoothLowEnergyInterface(Guid serviceAddress)
         {
             // Create new service address
             DeviceAddress = new BluetoothLEServiceAddress(serviceAddress);
@@ -165,7 +165,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">Service UUID</param>
         /// <param name="characteristicUUID">Characteristic UUID</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async ValueTask<BLE_Endpoint?> FindEndpoint(Guid serviceUUID, Guid characteristicUUID)
+        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(Guid serviceUUID, Guid characteristicUUID)
         {
             // Get service
             GattDeviceService? service = await GetService(serviceUUID);
@@ -183,7 +183,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicUUID">UUID of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async ValueTask<BLE_Endpoint?> FindEndpoint(GattDeviceService? service, Guid characteristicUUID)
+        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(GattDeviceService? service, Guid characteristicUUID)
         {
             // Get service
             if (service == null) return null;
@@ -195,7 +195,7 @@ namespace IRIS.Bluetooth.Communication
             if (characteristic == null) return null;
 
             // Return new endpoint
-            return new BLE_Endpoint(this, service, characteristic);
+            return new BluetoothLowEnergyEndpoint(this, service, characteristic);
         }
 
         /// <summary>
@@ -204,7 +204,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">UUID of the service</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async ValueTask<BLE_Endpoint?> FindEndpoint(Guid serviceUUID, int characteristicIndex)
+        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(Guid serviceUUID, int characteristicIndex)
         {
             // Get service
             GattDeviceService? service = await GetService(serviceUUID);
@@ -222,7 +222,7 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async ValueTask<BLE_Endpoint?> FindEndpoint(GattDeviceService? service, int characteristicIndex)
+        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(GattDeviceService? service, int characteristicIndex)
         {
             // Get service
             if (service == null) return null;
@@ -234,7 +234,7 @@ namespace IRIS.Bluetooth.Communication
             if (characteristic == null) return null;
 
             // Return new endpoint
-            return new BLE_Endpoint(this, service, characteristic);
+            return new BluetoothLowEnergyEndpoint(this, service, characteristic);
         }
 
         /// <summary>

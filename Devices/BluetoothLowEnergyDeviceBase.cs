@@ -9,12 +9,12 @@ namespace IRIS.Bluetooth.Devices
     /// <summary>
     /// Represents a Bluetooth LE device
     /// </summary>
-    public abstract class BLE_DeviceBase : DeviceBase<BluetoothLEInterface>
+    public abstract class BluetoothLowEnergyDeviceBase : DeviceBase<BluetoothLowEnergyInterface>
     {
         /// <summary>
         /// List of all known endpoints registered on this device
         /// </summary>
-        private List<BLE_EndpointInfo> Endpoints { get; } = new();
+        private List<BluetoothLowEnergyEndpointInfo> Endpoints { get; } = new();
 
         /// <summary>
         /// Determines if the device is connected
@@ -26,14 +26,14 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         public bool IsConnected => DeviceState == BluetoothDeviceState.Connected;
 
-        public BLE_DeviceBase(string deviceNameRegex)
+        public BluetoothLowEnergyDeviceBase(string deviceNameRegex)
         {
-            HardwareAccess = new BluetoothLEInterface(deviceNameRegex);
+            HardwareAccess = new BluetoothLowEnergyInterface(deviceNameRegex);
         }
 
-        public BLE_DeviceBase(Guid serviceUUID)
+        public BluetoothLowEnergyDeviceBase(Guid serviceUUID)
         {
-            HardwareAccess = new BluetoothLEInterface(serviceUUID);
+            HardwareAccess = new BluetoothLowEnergyInterface(serviceUUID);
         }
 
         /// <summary>
@@ -117,15 +117,15 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         /// <param name="endpointIndex">Endpoint index</param>
         /// <returns>Endpoint if found, null otherwise</returns>
-        protected BLE_Endpoint? GetEndpoint(uint endpointIndex) => GetEndpointInfo(endpointIndex)?.Endpoint;
+        protected BluetoothLowEnergyEndpoint? GetEndpoint(uint endpointIndex) => GetEndpointInfo(endpointIndex)?.Endpoint;
 
         /// <summary>
         /// Get endpoint info by index
         /// </summary>
-        protected BLE_EndpointInfo? GetEndpointInfo(uint endpointIndex)
+        protected BluetoothLowEnergyEndpointInfo? GetEndpointInfo(uint endpointIndex)
         {
             // Loop through all endpoints and find the one with the same index
-            foreach (BLE_EndpointInfo endpoint in Endpoints)
+            foreach (BluetoothLowEnergyEndpointInfo endpoint in Endpoints)
             {
                 if (endpoint.EndpointIndex == endpointIndex) return endpoint;
             }
@@ -140,7 +140,7 @@ namespace IRIS.Bluetooth.Devices
         protected bool CheckIfAllRequiredEndpointsAreValid()
         {
             // Loop through all endpoints and check if all required endpoints are attached
-            foreach (BLE_EndpointInfo endpoint in Endpoints)
+            foreach (BluetoothLowEnergyEndpointInfo endpoint in Endpoints)
             {
                 if (endpoint is {Mode: EndpointMode.Required, Endpoint: null}) return false;
             }
@@ -161,10 +161,10 @@ namespace IRIS.Bluetooth.Devices
             uint endpointIndex,
             Guid endpointService,
             int endpointCharacteristicIndex,
-            BLE_Endpoint.NotificationReceivedHandler notificationHandler,
+            BluetoothLowEnergyEndpoint.NotificationReceivedHandler notificationHandler,
             EndpointMode mode = EndpointMode.Required)
         {
-            BLE_Endpoint? endpoint =
+            BluetoothLowEnergyEndpoint? endpoint =
                 await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
 
             return _AttachEndpoint(endpointIndex, endpoint, notificationHandler);
@@ -183,11 +183,11 @@ namespace IRIS.Bluetooth.Devices
             uint endpointIndex,
             Guid endpointService,
             Guid endpointCharacteristic,
-            BLE_Endpoint.NotificationReceivedHandler notificationHandler,
+            BluetoothLowEnergyEndpoint.NotificationReceivedHandler notificationHandler,
             EndpointMode mode = EndpointMode.Required)
         {
             // Get endpoint
-            BLE_Endpoint? endpoint = await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
+            BluetoothLowEnergyEndpoint? endpoint = await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
 
             return _AttachEndpoint(endpointIndex, endpoint, notificationHandler);
         }
@@ -197,14 +197,14 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         private bool _AttachEndpoint(
             uint endpointIndex,
-            BLE_Endpoint? endpoint,
-            BLE_Endpoint.NotificationReceivedHandler notificationHandler,
+            BluetoothLowEnergyEndpoint? endpoint,
+            BluetoothLowEnergyEndpoint.NotificationReceivedHandler notificationHandler,
             EndpointMode mode = EndpointMode.Required)
         {
             lock (Endpoints)
             {
                 // Check if endpoint already exists add notification handler and return
-                BLE_EndpointInfo foundEndpoint = Endpoints.FirstOrDefault(x => x.EndpointIndex == endpointIndex);
+                BluetoothLowEnergyEndpointInfo foundEndpoint = Endpoints.FirstOrDefault(x => x.EndpointIndex == endpointIndex);
                 if (foundEndpoint.Endpoint is {IsNotifyAvailable: true})
                 {
                     foundEndpoint.AddNotificationHandler(notificationHandler);
@@ -239,7 +239,7 @@ namespace IRIS.Bluetooth.Devices
             int endpointCharacteristicIndex,
             EndpointMode mode = EndpointMode.Required)
         {
-            BLE_Endpoint? endpoint =
+            BluetoothLowEnergyEndpoint? endpoint =
                 await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
 
             _LoadEndpoint(endpointIndex, endpoint, mode);
@@ -259,7 +259,7 @@ namespace IRIS.Bluetooth.Devices
             EndpointMode mode = EndpointMode.Required)
         {
             // Get endpoint
-            BLE_Endpoint? endpoint = await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
+            BluetoothLowEnergyEndpoint? endpoint = await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
 
             // Load endpoint
             _LoadEndpoint(endpointIndex, endpoint, mode);
@@ -270,13 +270,13 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         private void _LoadEndpoint(
             uint endpointIndex,
-            BLE_Endpoint? endpoint,
+            BluetoothLowEnergyEndpoint? endpoint,
             EndpointMode mode = EndpointMode.Required)
         {
             // If no endpoint with same ID exists add it
             if (Endpoints.All(x => x.EndpointIndex != endpointIndex))
             {
-                Endpoints.Add(new BLE_EndpointInfo(endpointIndex, endpoint, mode));
+                Endpoints.Add(new BluetoothLowEnergyEndpointInfo(endpointIndex, endpoint, mode));
                 return;
             }
 
@@ -286,7 +286,7 @@ namespace IRIS.Bluetooth.Devices
             {
                 if (Endpoints[i].EndpointIndex == endpointIndex && Endpoints[i].Endpoint == null)
                 {
-                    Endpoints[i] = new BLE_EndpointInfo(endpointIndex, endpoint, mode);
+                    Endpoints[i] = new BluetoothLowEnergyEndpointInfo(endpointIndex, endpoint, mode);
                     return;
                 }
                 else
@@ -302,7 +302,7 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="listIndex">Index of the endpoint in endpoints list</param>
         private async ValueTask DetachOrUnloadEndpoint(int listIndex)
         {
-            BLE_EndpointInfo endpointInfo;
+            BluetoothLowEnergyEndpointInfo endpointInfo;
             
             lock (Endpoints)
             {
@@ -319,7 +319,7 @@ namespace IRIS.Bluetooth.Devices
                 if (endpointInfo.Endpoint == null) return;
 
                 // We found notification handlers, so we need to detach them
-                foreach (BLE_Endpoint.NotificationReceivedHandler notificationHandler in endpointInfo
+                foreach (BluetoothLowEnergyEndpoint.NotificationReceivedHandler notificationHandler in endpointInfo
                              .NotificationHandlers)
                 {
                     endpointInfo.Endpoint.NotificationReceived -= notificationHandler;

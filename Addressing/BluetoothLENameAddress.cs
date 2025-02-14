@@ -6,8 +6,8 @@ namespace IRIS.Bluetooth.Addressing
 {
     public struct BluetoothLENameAddress : IBluetoothLEAddress
     {
-        private BluetoothLEAdvertisementFilter _cachedAdvertisementFilter;
-        private BluetoothSignalStrengthFilter _cachedSignalStrengthFilter;
+        private readonly BluetoothLEAdvertisementFilter _cachedAdvertisementFilter;
+        private readonly BluetoothSignalStrengthFilter _cachedSignalStrengthFilter;
         
         /// <summary>
         /// Regular expression to match device name

@@ -2,7 +2,7 @@
 
 namespace IRIS.Bluetooth.Data
 {
-    public struct BLE_EndpointInfo(uint endpointIndex, BLE_Endpoint? endpoint, EndpointMode mode = EndpointMode.Required)
+    public struct BluetoothLowEnergyEndpointInfo(uint endpointIndex, BluetoothLowEnergyEndpoint? endpoint, EndpointMode mode = EndpointMode.Required)
     {
         /// <summary>
         /// Index of the endpoint
@@ -17,14 +17,14 @@ namespace IRIS.Bluetooth.Data
         /// <summary>
         /// Endpoint object
         /// </summary>
-        public BLE_Endpoint? Endpoint { get; set; } = endpoint;
+        public BluetoothLowEnergyEndpoint? Endpoint { get; set; } = endpoint;
         
         /// <summary>
         /// List of notification handlers for the endpoint
         /// </summary>
-        public List<BLE_Endpoint.NotificationReceivedHandler> NotificationHandlers { get; } = new();
+        public List<BluetoothLowEnergyEndpoint.NotificationReceivedHandler> NotificationHandlers { get; } = new();
         
-        public async void AddNotificationHandler(BLE_Endpoint.NotificationReceivedHandler handler)
+        public async void AddNotificationHandler(BluetoothLowEnergyEndpoint.NotificationReceivedHandler handler)
         {
             if(Endpoint == null) return;
             if(!Endpoint.IsNotifyAvailable) return;
@@ -42,7 +42,7 @@ namespace IRIS.Bluetooth.Data
             }
         }
         
-        public async void RemoveNotificationHandler(BLE_Endpoint.NotificationReceivedHandler handler)
+        public async void RemoveNotificationHandler(BluetoothLowEnergyEndpoint.NotificationReceivedHandler handler)
         {
             if(Endpoint == null) return;
             if(!Endpoint.IsNotifyAvailable) return;
