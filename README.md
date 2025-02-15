@@ -57,6 +57,11 @@ may be different on each device (e.g. sometimes heart rate bands use
 different UUID for the characteristic, but it's almost always on the
 index `0`).
 
+Endpoints are identified by `uint` identifiers to be quickly accessible
+from other parts of the system, however it's recommended to use value
+returned from `AttachEndpoint` or `LoadEndpoint` methods and assign it
+to custom property.
+
 You need to override `AttachOrLoadEndpoints` method in your BLE device
 implementation and attach or load endpoints to/from the device.
 
@@ -121,8 +126,43 @@ protected override void AttachOrLoadEndpoints()
     HandleRXNotification, EndpointMode.Optional);
 }
 ```
+
 If optional endpoint is not found load/attach will return `null` and you can
 check if endpoint is present in the device by comparing it to `null`.
+### Attaching by potential endpoints
+Attach and Load endpoint have overloads to be used with `PotentialEndpoint` table.
+This allows for easy implementation of devices that have multiple endpoints with
+different UUIDs doing the same thing, but being device-version specific.
+
+```csharp
+   protected async ValueTask<BluetoothLowEnergyEndpoint?> AttachEndpoint(
+            uint endpointIndex,
+            BluetoothLowEnergyEndpoint.NotificationReceivedHandler notificationHandler,
+            EndpointMode mode = EndpointMode.Required,
+            params PotentialEndpoint[] potentialEndpoints)
+```
+
+This methods have additional `params PotentialEndpoint[] potentialEndpoints` parameter
+which allows to specify potential endpoints that can be used to attach endpoint.
+
+```csharp
+protected override void AttachOrLoadEndpoints()
+{
+    // Attach potential endpoints
+    var potentialEndpoints = new PotentialEndpoint[]
+    {
+        // You can specify endpoint with single characteristic
+        new PotentialEndpoint(SERVICE_A, TX_ENDPOINT_A),
+        
+        // Or with multiple characteristics (e.g. for different versions of the device)
+        new PotentialEndpoint(SERVICE_B, TX_ENDPOINT_B, TX_ENDPOINT_C),
+    };
+
+    // Attach or load endpoint
+    Endpoint = await AttachEndpoint(ENDPOINT_ID, HandleNotification, potentialEndpoints);
+    Endpoint = LoadEndpoint(ENDPOINT_ID, potentialEndpoints);
+}
+```
 
 ## Included Examples
 ### BluetoothLowEnergyHeartRateBand

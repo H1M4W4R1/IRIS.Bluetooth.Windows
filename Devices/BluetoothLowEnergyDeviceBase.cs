@@ -147,9 +147,68 @@ namespace IRIS.Bluetooth.Devices
 
             return true;
         }
+
+        /// <summary>
+        /// Attach to an endpoint by potential endpoints
+        /// </summary>
+        /// <param name="endpointIndex">Index of the endpoint</param>
+        /// <param name="notificationHandler">Notification handler</param>
+        /// <param name="mode">Mode of the endpoint</param>
+        /// <param name="potentialEndpoints">Potential endpoints to load</param>
+        /// <returns>Endpoint if successful, null otherwise</returns>
+        protected async ValueTask<BluetoothLowEnergyEndpoint?> AttachEndpoint(
+            uint endpointIndex,
+            BluetoothLowEnergyEndpoint.NotificationReceivedHandler notificationHandler,
+            EndpointMode mode = EndpointMode.Required,
+            params PotentialEndpoint[] potentialEndpoints)
+        {
+            // Loop through all potential endpoints and try to load them
+            foreach (PotentialEndpoint potentialEndpoint in potentialEndpoints)
+            {
+                // Loop through all characteristic UUIDs and try to load the endpoint
+                foreach (Guid characteristicUUID in potentialEndpoint.CharacteristicUUIDs)
+                {
+                    // Load endpoint
+                    BluetoothLowEnergyEndpoint? endpoint = await AttachEndpoint(endpointIndex, potentialEndpoint.ServiceUUID, characteristicUUID, notificationHandler, mode);
+                    
+                    // Return endpoint if successful
+                    if (endpoint != null) return endpoint;
+                }
+            }
+
+            // Return null if no endpoint was found
+            return null;
+        }
         
-        // TODO: Load any endpoint by GUID or GUID pair (service:endpoint)
-        // TODO: Attach to any endpoint by GUID or GUID pair (service:endpoint)
+        /// <summary>
+        /// Loads endpoint by potential endpoints
+        /// </summary>
+        /// <param name="endpointIndex">Index of the endpoint</param>
+        /// <param name="mode">Mode of the endpoint</param>
+        /// <param name="potentialEndpoints">Potential endpoints to load</param>
+        /// <returns>Endpoint if successful, null otherwise</returns>
+        protected async ValueTask<BluetoothLowEnergyEndpoint?> LoadEndpoint(
+            uint endpointIndex,
+            EndpointMode mode = EndpointMode.Required,
+            params PotentialEndpoint[] potentialEndpoints)
+        {
+            // Loop through all potential endpoints and try to load them
+            foreach (PotentialEndpoint potentialEndpoint in potentialEndpoints)
+            {
+                // Loop through all characteristic UUIDs and try to load the endpoint
+                foreach (Guid characteristicUUID in potentialEndpoint.CharacteristicUUIDs)
+                {
+                    // Load endpoint
+                    BluetoothLowEnergyEndpoint? endpoint = await LoadEndpoint(endpointIndex, potentialEndpoint.ServiceUUID, characteristicUUID, mode);
+                    
+                    // Return endpoint if successful
+                    if (endpoint != null) return endpoint;
+                }
+            }
+
+            // Return null if no endpoint was found
+            return null;
+        }
 
         /// <summary>
         /// Attach to an endpoint
@@ -217,7 +276,7 @@ namespace IRIS.Bluetooth.Devices
                 if (foundEndpoint.Endpoint != null) return false;
 
                 // Add endpoint
-                _LoadEndpoint(endpointIndex, endpoint, mode);
+                if(!_LoadEndpoint(endpointIndex, endpoint, mode)) return false;
 
                 // Attach notification handler
                 Endpoints[^1].AddNotificationHandler(notificationHandler);
