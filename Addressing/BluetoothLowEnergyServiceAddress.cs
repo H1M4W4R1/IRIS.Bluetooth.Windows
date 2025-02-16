@@ -1,6 +1,7 @@
 ﻿using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
+using Windows.Foundation;
 
 namespace IRIS.Bluetooth.Addressing
 {
@@ -36,20 +37,31 @@ namespace IRIS.Bluetooth.Addressing
         /// <summary>
         /// Check if the device is valid for this service
         /// </summary>
-        public async ValueTask<bool> IsDeviceValid(BluetoothLEDevice device)
+        public bool IsDeviceValid(BluetoothLEDevice device)
         {
             // Cache service UUID because C#...
             Guid uuid = ServiceUUID;
-            
+
             // Get service
-            GattDeviceServicesResult serviceResult = await device.GetGattServicesAsync();
+            IAsyncOperation<GattDeviceServicesResult> serviceResult = device.GetGattServicesAsync();
+
+            // Wait for result
+            while (serviceResult.Status != AsyncStatus.Completed)
+            {
+                // Check if the task was cancelled
+                if (serviceResult.Status == AsyncStatus.Canceled || serviceResult.Status == AsyncStatus.Error)
+                    return false;
+            }
+            
+            // Get result status
+            if (serviceResult.GetResults() is not { } services) return false;
 
             // Ensure communication status is OK
-            if (serviceResult.Status != GattCommunicationStatus.Success) return false;
+            if (services.Status != GattCommunicationStatus.Success) return false;
 
             // Get service
-            GattDeviceService? service = 
-                serviceResult.Services.FirstOrDefault(s => s.Uuid == uuid);
+            GattDeviceService? service =
+                services.Services.FirstOrDefault(s => s.Uuid == uuid);
 
             // Check if device has the service
             return service != null;
@@ -87,7 +99,7 @@ namespace IRIS.Bluetooth.Addressing
                 OutOfRangeTimeout = TimeSpan.FromSeconds(timeoutSeconds),
             };
         }
-        
+
         public override string ToString() => $"{ServiceUUID}";
     }
 }

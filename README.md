@@ -66,7 +66,7 @@ You need to override `AttachOrLoadEndpoints` method in your BLE device
 implementation and attach or load endpoints to/from the device.
 
 ```cs
-protected override async Task AttachOrLoadEndpoints()
+protected override void AttachOrLoadEndpoints()
 {
     // Insert code here
 }
@@ -78,7 +78,7 @@ handler specific for the device. In case below it's handler used to parse heart
 rate data.
 
 ```csharp
-protected override async Task AttachOrLoadEndpoints()
+protected override void AttachOrLoadEndpoints()
 {
        // Load heart rate endpoint and attach notification handler
     HeartRateEndpoint = await AttachEndpoint(HEART_RATE_ENDPOINT_ID, GattServiceUuids.HeartRate,
@@ -94,7 +94,7 @@ Loading allows to load endpoints from the device. This is useful when you want
 to create custom read/write operations on the device.
 
 ```csharp
-protected override async Task AttachOrLoadEndpoints()
+protected override void AttachOrLoadEndpoints()
 {
     // Load TX endpoint
     TXEndpoint = LoadEndpoint(BLE_TX_CHANNEL_ID, BLE_SERVICE_UUID, BLE_TX_CHARACTERISTIC_UUID);
@@ -116,7 +116,7 @@ some endpoints optional you can use `AttachEndpoint` or `LoadEndpoint` method
 with additional `EndpointMode.Optional` parameter (last one).
 
 ```csharp
-protected override async Task AttachOrLoadEndpoints()
+protected override void AttachOrLoadEndpoints()
 {
     // Load TX endpoint
     TXEndpoint = LoadEndpoint(BLE_TX_CHANNEL_ID, BLE_SERVICE_UUID, BLE_TX_CHARACTERISTIC_UUID);
@@ -135,7 +135,7 @@ This allows for easy implementation of devices that have multiple endpoints with
 different UUIDs doing the same thing, but being device-version specific.
 
 ```csharp
-   protected async ValueTask<BluetoothLowEnergyEndpoint?> AttachEndpoint(
+   protected async BluetoothLowEnergyEndpoint? AttachEndpoint(
             uint endpointIndex,
             BluetoothLowEnergyEndpoint.NotificationReceivedHandler notificationHandler,
             EndpointMode mode = EndpointMode.Required,
@@ -146,7 +146,7 @@ This methods have additional `params PotentialEndpoint[] potentialEndpoints` par
 which allows to specify potential endpoints that can be used to attach endpoint.
 
 ```csharp
-protected override async Task AttachOrLoadEndpoints()
+protected override void AttachOrLoadEndpoints()
 {
     // Attach potential endpoints
     var potentialEndpoints = new PotentialEndpoint[]

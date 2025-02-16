@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using Windows.Storage.Streams;
+using IRIS.Data;
 
 namespace IRIS.Bluetooth.Utility
 {
@@ -45,7 +46,7 @@ namespace IRIS.Bluetooth.Utility
         /// <typeparam name="TBufferData">Type of data</typeparam>
         /// <returns>Read data or null if type is not supported</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static (bool, TBufferData?) Read<TBufferData>(this IBuffer buffer)
+        public static DataPromise<TBufferData> Read<TBufferData>(this IBuffer buffer)
         {
             // Create new reader
             using DataReader reader = DataReader.FromBuffer(buffer);
@@ -94,8 +95,8 @@ namespace IRIS.Bluetooth.Utility
             else if (typeof(TBufferData) == typeof(DateTime)) result = reader.ReadDateTime();
 
             // Check if result is valid type, if so return it, if not return null
-            if (result is TBufferData properResult) return (true, properResult);
-            return (false, default);
+            if (result is TBufferData properResult) return DataPromise.FromSuccess(properResult);
+            return DataPromise.FromFailure<TBufferData>();
         }
     }
 }

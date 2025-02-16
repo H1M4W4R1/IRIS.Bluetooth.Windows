@@ -2,6 +2,7 @@
 using IRIS.Bluetooth.Communication;
 using IRIS.Bluetooth.Devices;
 using IRIS.Bluetooth.Implementations.Data;
+using IRIS.Data;
 
 namespace IRIS.Bluetooth.Implementations
 {
@@ -26,29 +27,29 @@ namespace IRIS.Bluetooth.Implementations
 
         private BluetoothLowEnergyEndpoint? HeartRateEndpoint { get; set; }
 
-        protected override async Task AttachOrLoadEndpoints()
+        protected override void AttachOrLoadEndpoints()
         {
             // Attach the heart rate endpoint
             // we don't need to notify interface for disconnection as
             // it will be automatically handled in endpoint methods
-            HeartRateEndpoint = await AttachEndpoint(HEART_RATE_ENDPOINT_ID, GattServiceUuids.HeartRate,
+            HeartRateEndpoint = AttachEndpoint(HEART_RATE_ENDPOINT_ID, GattServiceUuids.HeartRate,
                 HEART_RATE_CHARACTERISTIC_INDEX, HandleHeartRateNotification);
         }
 
         /// <summary>
         /// Process the raw data received from the device into application usable data,
         /// </summary>
-        private async void HandleHeartRateNotification(GattCharacteristic sender, GattValueChangedEventArgs args)
+        private void HandleHeartRateNotification(GattCharacteristic sender, GattValueChangedEventArgs args)
         {
             // If endpoint failed, return
             if (HeartRateEndpoint == null) return;
 
             // Read the data from the endpoint and return if it is null
-            byte[]? data = await HeartRateEndpoint.ReadData<byte[]>();
-            if (data == null) return;
+            DataPromise<byte[]> data = HeartRateEndpoint.ReadData<byte[]>();
+            if(!data.HasData) return;
 
             // Process the data
-            HeartRateReadout heartRate = ProcessData(data);
+            HeartRateReadout heartRate = ProcessData(data.Data);
 
             // Notify listeners
             OnHeartRateReceived(heartRate);

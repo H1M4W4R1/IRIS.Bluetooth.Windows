@@ -1,8 +1,10 @@
 ﻿using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
+using Windows.Foundation;
 using IRIS.Bluetooth.Addressing;
 using IRIS.Communication;
+using IRIS.Data;
 using static IRIS.Bluetooth.Communication.Delegates;
 using static IRIS.Communication.Delegates;
 
@@ -135,7 +137,7 @@ namespace IRIS.Bluetooth.Communication
             };
         }
 
-        private async void OnAdvertisementReceived(
+        private void OnAdvertisementReceived(
             BluetoothLEAdvertisementWatcher watcher,
             BluetoothLEAdvertisementReceivedEventArgs args)
         {
@@ -147,14 +149,24 @@ namespace IRIS.Bluetooth.Communication
             if (ConnectedDevices.Contains(args.BluetoothAddress)) return;
 
             // Connect to device
-            BluetoothLEDevice device =
-                await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
-
-            // If the device is not found, ignore
+            IAsyncOperation<BluetoothLEDevice> deviceOperation = BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
+            
+            // Wait for device to connect
+            while (deviceOperation.Status != AsyncStatus.Completed)
+            {
+                // Check if operation was cancelled or errored
+                if (deviceOperation.Status is not (AsyncStatus.Canceled or AsyncStatus.Error)) continue;
+                return;
+            }
+            
+            // Get device
+            BluetoothLEDevice? device = deviceOperation.GetResults();
+            
+            // Check if device is null
             if (device == null) return;
 
             // Check if device matches expected address
-            if (!await DeviceAddress.IsDeviceValid(device)) return;
+            if (!DeviceAddress.IsDeviceValid(device)) return;
 
             lock (ConnectedDevices)
             {
@@ -176,16 +188,15 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">Service UUID</param>
         /// <param name="characteristicUUID">Characteristic UUID</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(Guid serviceUUID, Guid characteristicUUID)
+        public DataPromise<BluetoothLowEnergyEndpoint> FindEndpoint(Guid serviceUUID, Guid characteristicUUID)
         {
             // Get service
-            GattDeviceService? service = await GetService(serviceUUID);
-
-            // Check if service is null
-            if (service == null) return null;
-
-            // Get characteristic
-            return await FindEndpoint(service, characteristicUUID);
+            DataPromise<GattDeviceService> service = GetService(serviceUUID);
+            
+            // Check if service is null and return
+            return !service.HasData
+                ? DataPromise<BluetoothLowEnergyEndpoint>.FromFailure()
+                : FindEndpoint(service.Data, characteristicUUID);
         }
 
         /// <summary>
@@ -194,21 +205,20 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicUUID">UUID of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(
+        public DataPromise<BluetoothLowEnergyEndpoint> FindEndpoint(
             GattDeviceService? service,
             Guid characteristicUUID)
         {
             // Get service
-            if (service == null) return null;
+            if (service == null) return DataPromise<BluetoothLowEnergyEndpoint>.FromFailure();
 
             // Get characteristic
-            GattCharacteristic? characteristic = await GetCharacteristic(service, characteristicUUID);
-
-            // Check if characteristic is null
-            if (characteristic == null) return null;
-
-            // Return new endpoint
-            return new BluetoothLowEnergyEndpoint(this, service, characteristic);
+            DataPromise<GattCharacteristic> characteristic = GetCharacteristic(service, characteristicUUID);
+            
+            // Check if characteristic is null and return
+            return !characteristic.HasData
+                ? DataPromise<BluetoothLowEnergyEndpoint>.FromFailure()
+                : DataPromise.FromSuccess(new BluetoothLowEnergyEndpoint(this, service, characteristic.Data));
         }
 
         /// <summary>
@@ -217,16 +227,15 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">UUID of the service</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(Guid serviceUUID, int characteristicIndex)
+        public DataPromise<BluetoothLowEnergyEndpoint> FindEndpoint(Guid serviceUUID, int characteristicIndex)
         {
             // Get service
-            GattDeviceService? service = await GetService(serviceUUID);
+            DataPromise<GattDeviceService> service = GetService(serviceUUID);
 
-            // Check if service is null
-            if (service == null) return null;
-
-            // Get characteristic
-            return await FindEndpoint(service, characteristicIndex);
+            // Check if service is null and return
+            return !service.HasData
+                ? DataPromise<BluetoothLowEnergyEndpoint>.FromFailure()
+                : FindEndpoint(service.Data, characteristicIndex);
         }
 
         /// <summary>
@@ -235,21 +244,20 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(
+        public DataPromise<BluetoothLowEnergyEndpoint> FindEndpoint(
             GattDeviceService? service,
             int characteristicIndex)
         {
             // Get service
-            if (service == null) return null;
+            if (service == null) return DataPromise<BluetoothLowEnergyEndpoint>.FromFailure();
 
             // Get characteristic
-            GattCharacteristic? characteristic = await GetCharacteristic(service, characteristicIndex);
+            DataPromise<GattCharacteristic> characteristic = GetCharacteristic(service, characteristicIndex);
 
-            // Check if characteristic is null
-            if (characteristic == null) return null;
-
-            // Return new endpoint
-            return new BluetoothLowEnergyEndpoint(this, service, characteristic);
+            // Check if characteristic is null and return
+            return !characteristic.HasData
+                ? DataPromise<BluetoothLowEnergyEndpoint>.FromFailure()
+                : DataPromise.FromSuccess(new BluetoothLowEnergyEndpoint(this, service, characteristic.Data));
         }
 
         /// <summary>
@@ -258,37 +266,38 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">UUID of the service</param>
         /// <param name="characteristicUUID">UUID of the characteristic</param>
         /// <returns>Characteristic or null if not found</returns>
-        public async ValueTask<GattCharacteristic?> GetCharacteristic(Guid serviceUUID, Guid characteristicUUID)
+        public DataPromise<GattCharacteristic> GetCharacteristic(Guid serviceUUID, Guid characteristicUUID)
         {
             // Check if device is connected
-            if (!IsConnected) return null;
+            if (!IsConnected) return DataPromise<GattCharacteristic>.FromFailure();
 
             // Get service
-            GattDeviceService? service = await GetService(serviceUUID);
+            DataPromise<GattDeviceService> service = GetService(serviceUUID);
 
-            // Check if service is null
-            if (service == null) return null;
-
-            // Get characteristic
-            return await GetCharacteristic(service, characteristicUUID);
+            // Check if service is null and return
+            return !service.HasData
+                ? DataPromise<GattCharacteristic>.FromFailure()
+                : GetCharacteristic(service.Data, characteristicUUID);
         }
 
-        public async ValueTask<GattCharacteristic?> GetCharacteristic(
+        public DataPromise<GattCharacteristic> GetCharacteristic(
             GattDeviceService service,
             Guid characteristicUUID)
         {
             // Check if device is connected
-            if (!IsConnected) return null;
+            if (!IsConnected) return DataPromise<GattCharacteristic>.FromFailure();
 
             // Get characteristic from service
-            IReadOnlyList<GattCharacteristic>? characteristics =
-                await GetAllCharacteristicsFor(service, characteristicUUID);
+            DataPromise<IReadOnlyList<GattCharacteristic>> characteristics =
+                GetAllCharacteristicsFor(service, characteristicUUID);
 
             // Check if characteristics are null
-            if (characteristics == null) return null;
+            if (!characteristics.HasData) return DataPromise<GattCharacteristic>.FromFailure();
 
             // Return first characteristic found
-            return characteristics.Count > 0 ? characteristics[0] : null;
+            return characteristics.Data.Count > 0
+                ? DataPromise.FromSuccess(characteristics.Data[0])
+                : DataPromise<GattCharacteristic>.FromFailure();
         }
 
         /// <summary>
@@ -297,16 +306,15 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">UUID of the service</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Characteristic or null if not found</returns>
-        public async ValueTask<GattCharacteristic?> GetCharacteristic(Guid serviceUUID, int characteristicIndex)
+        public DataPromise<GattCharacteristic> GetCharacteristic(Guid serviceUUID, int characteristicIndex)
         {
             // Get service
-            GattDeviceService? service = await GetService(serviceUUID);
+            DataPromise<GattDeviceService> service = GetService(serviceUUID);
 
-            // Check if service is null
-            if (service == null) return null;
-
-            // Get characteristic
-            return await GetCharacteristic(service, characteristicIndex);
+            // Check if service is null and return
+            return !service.HasData
+                ? DataPromise<GattCharacteristic>.FromFailure()
+                : GetCharacteristic(service.Data, characteristicIndex);
         }
 
         /// <summary>
@@ -315,27 +323,31 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Characteristic or null if not found</returns>
-        public async ValueTask<GattCharacteristic?> GetCharacteristic(
+        public DataPromise<GattCharacteristic> GetCharacteristic(
             GattDeviceService service,
             int characteristicIndex)
         {
             // Check if device is connected
-            if (!IsConnected) return null;
+            if (!IsConnected) return DataPromise<GattCharacteristic>.FromFailure();
 
             // Check if index is negative
-            if (characteristicIndex < 0) return null;
+            if (characteristicIndex < 0) return DataPromise<GattCharacteristic>.FromFailure();
 
             // Get all characteristics
-            IReadOnlyList<GattCharacteristic>? characteristics = await GetAllCharacteristics(service);
+            DataPromise<IReadOnlyList<GattCharacteristic>> characteristics = GetAllCharacteristics(service);
 
             // Check if characteristics are null
-            if (characteristics == null) return null;
+            if (!characteristics.HasData) return DataPromise<GattCharacteristic>.FromFailure();
 
             // Check if index is out of bounds
-            if (characteristicIndex >= characteristics.Count) return null;
+            if (characteristicIndex >= characteristics.Data.Count)
+                return DataPromise<GattCharacteristic>.FromFailure();
+
+            // Get characteristic
+            GattCharacteristic characteristic = characteristics.Data[characteristicIndex];
 
             // Return characteristic
-            return characteristics[characteristicIndex];
+            return DataPromise.FromSuccess(characteristic);
         }
 
         /// <summary>
@@ -344,47 +356,57 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">Service UUID</param>
         /// <param name="characteristicUUID">Characteristic UUID</param>
         /// <returns>List of characteristics or null if not found</returns>
-        public async ValueTask<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristicsFor(
+        public DataPromise<IReadOnlyList<GattCharacteristic>> GetAllCharacteristicsFor(
             Guid serviceUUID,
             Guid characteristicUUID)
         {
             // Get service
-            GattDeviceService? service = await GetService(serviceUUID);
+            DataPromise<GattDeviceService> service = GetService(serviceUUID);
 
-            // Check if service is null
-            if (service == null) return null;
-
-            // Get characteristics
-            return await GetAllCharacteristicsFor(service, characteristicUUID);
+            // Check if service is null and return
+            return !service.HasData
+                ? DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure()
+                : GetAllCharacteristicsFor(service.Data, characteristicUUID);
         }
 
         /// <summary>
         /// Get all characteristics from service for specified UUID
         /// </summary>
-        public async ValueTask<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristicsFor(
+        public DataPromise<IReadOnlyList<GattCharacteristic>> GetAllCharacteristicsFor(
             GattDeviceService service,
             Guid characteristicUUID)
         {
             // Check if device is connected
-            if (!IsConnected) return null;
+            if (!IsConnected) return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
 
             // Get specific characteristic
-            GattCharacteristicsResult characteristic =
-                await service.GetCharacteristicsForUuidAsync(characteristicUUID);
+            IAsyncOperation<GattCharacteristicsResult> characteristicsRequest =
+                service.GetCharacteristicsForUuidAsync(characteristicUUID);
+
+            // Wait for async operation to complete
+            while (characteristicsRequest.Status != AsyncStatus.Completed)
+            {
+                // Check if operation was cancelled or errored
+                if (characteristicsRequest.Status is not (AsyncStatus.Canceled or AsyncStatus.Error)) continue;
+                return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
+            }
+
+            // Get data from async operation
+            GattCharacteristicsResult characteristics = characteristicsRequest.GetResults();
 
             // Check if characteristic is unreachable
-            switch (characteristic.Status)
+            switch (characteristics.Status)
             {
                 case GattCommunicationStatus.Unreachable:
                     DeviceConnectionLost?.Invoke(DeviceAddress);
                     Disconnect();
-                    return null;
+                    return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
                 case GattCommunicationStatus.Success: break;
-                default: return null;
+                default: return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
             }
 
             // Return characteristic
-            return characteristic.Characteristics;
+            return DataPromise.FromSuccess(characteristics.Characteristics);
         }
 
         /// <summary>
@@ -392,15 +414,14 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <param name="serviceUUID">UUID of the service</param>
         /// <returns>List of characteristics or null if not found</returns>
-        public async ValueTask<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristics(Guid serviceUUID)
+        public DataPromise<IReadOnlyList<GattCharacteristic>> GetAllCharacteristics(Guid serviceUUID)
         {
-            GattDeviceService? service = await GetService(serviceUUID);
+            DataPromise<GattDeviceService> service = GetService(serviceUUID);
 
             // Check if service is null
-            if (service == null) return null;
-
-            // Get characteristics
-            return await GetAllCharacteristics(service);
+            return !service.HasData
+                ? DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure()
+                : GetAllCharacteristics(service.Data);
         }
 
         /// <summary>
@@ -408,13 +429,24 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <param name="service">Service to get characteristics from</param>
         /// <returns>List of characteristics or null if not found</returns>
-        public async ValueTask<IReadOnlyList<GattCharacteristic>?> GetAllCharacteristics(GattDeviceService service)
+        public DataPromise<IReadOnlyList<GattCharacteristic>> GetAllCharacteristics(GattDeviceService service)
         {
             // Check if device is connected
-            if (!IsConnected) return null;
+            if (!IsConnected) return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
 
             // Get characteristics
-            GattCharacteristicsResult? characteristics = await service.GetCharacteristicsAsync();
+            IAsyncOperation<GattCharacteristicsResult>? characteristicsRequest = service.GetCharacteristicsAsync();
+
+            // Wait for async operation to complete
+            while (characteristicsRequest.Status != AsyncStatus.Completed)
+            {
+                // Check if operation was cancelled or errored
+                if (characteristicsRequest.Status is not (AsyncStatus.Canceled or AsyncStatus.Error)) continue;
+                return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
+            }
+
+            // Get data from async operation
+            GattCharacteristicsResult characteristics = characteristicsRequest.GetResults();
 
             // Check if result is unreachable
             switch (characteristics.Status)
@@ -422,13 +454,13 @@ namespace IRIS.Bluetooth.Communication
                 case GattCommunicationStatus.Unreachable:
                     DeviceConnectionLost?.Invoke(DeviceAddress);
                     Disconnect();
-                    return null;
+                    return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
                 case GattCommunicationStatus.Success: break;
-                default: return null;
+                default: return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
             }
 
             // Return characteristics
-            return characteristics.Characteristics;
+            return DataPromise.FromSuccess(characteristics.Characteristics);
         }
 
         /// <summary>
@@ -436,19 +468,27 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <param name="serviceUUID">UUID of the service</param>
         /// <returns>Service or null if not found</returns>
-        public async ValueTask<GattDeviceService?> GetService(Guid serviceUUID)
+        public DataPromise<GattDeviceService> GetService(Guid serviceUUID)
         {
             // Check if device is connected
-            if (!IsConnected) return null;
+            if (!IsConnected) return DataPromise.FromFailure<GattDeviceService>();
 
             // Check if device exists
-            if (ConnectedDevice == null) return null;
+            if (ConnectedDevice == null) return DataPromise.FromFailure<GattDeviceService>();
 
             // Get services
-            IReadOnlyList<GattDeviceService>? services = await GetServices(serviceUUID);
+            DataPromise<IReadOnlyList<GattDeviceService>> services = GetServices(serviceUUID);
 
-            // Return first service found
-            return services?.Count > 0 ? services[0] : null;
+            // Check if services have data
+            if (!services.HasData) return DataPromise.FromFailure<GattDeviceService>();
+
+            // Get first service
+            GattDeviceService? service = services.Data?[0];
+
+            // Check if service is null and return
+            return service == null
+                ? DataPromise.FromFailure<GattDeviceService>()
+                : DataPromise.FromSuccess(service);
         }
 
         /// <summary>
@@ -456,30 +496,42 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <param name="serviceUUID">UUID of the service</param>
         /// <returns>List of services</returns>
-        public async ValueTask<IReadOnlyList<GattDeviceService>?> GetServices(Guid serviceUUID)
+        public DataPromise<IReadOnlyList<GattDeviceService>> GetServices(Guid serviceUUID)
         {
             // Check if device is connected
-            if (!IsConnected) return null;
+            if (!IsConnected) return DataPromise<IReadOnlyList<GattDeviceService>>.FromFailure();
 
             // Check if device exists
-            if (ConnectedDevice == null) return null;
+            if (ConnectedDevice == null) return DataPromise<IReadOnlyList<GattDeviceService>>.FromFailure();
 
             // Get service using UUID
-            GattDeviceServicesResult? services = await ConnectedDevice.GetGattServicesForUuidAsync(serviceUUID);
+            IAsyncOperation<GattDeviceServicesResult> servicesRequest =
+                ConnectedDevice.GetGattServicesForUuidAsync(serviceUUID);
+
+            // Wait for async operation to complete
+            while (servicesRequest.Status != AsyncStatus.Completed)
+            {
+                // Check if operation was cancelled or errored
+                if (servicesRequest.Status is not (AsyncStatus.Canceled or AsyncStatus.Error)) continue;
+                return DataPromise<IReadOnlyList<GattDeviceService>>.FromFailure();
+            }
+
+            // Get data from async operation
+            GattDeviceServicesResult servicesResult = servicesRequest.GetResults();
 
             // Check if service is found
-            switch (services.Status)
+            switch (servicesResult.Status)
             {
                 case GattCommunicationStatus.Unreachable:
                     DeviceConnectionLost?.Invoke(DeviceAddress);
                     Disconnect();
-                    return null;
+                    return DataPromise<IReadOnlyList<GattDeviceService>>.FromFailure();
                 case GattCommunicationStatus.Success: break;
-                default: return null;
+                default: return DataPromise<IReadOnlyList<GattDeviceService>>.FromFailure();
             }
 
             // Return first service found
-            return services.Services;
+            return DataPromise.FromSuccess(servicesResult.Services);
         }
     }
 }

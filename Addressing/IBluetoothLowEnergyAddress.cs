@@ -21,6 +21,6 @@ namespace IRIS.Bluetooth.Addressing
         /// <summary>
         /// Check if the device is valid for this address
         /// </summary>
-        public ValueTask<bool> IsDeviceValid(BluetoothLEDevice device);
+        public bool IsDeviceValid(BluetoothLEDevice device);
     }
 }

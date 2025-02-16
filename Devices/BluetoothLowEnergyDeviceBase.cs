@@ -2,6 +2,7 @@
 using Windows.Devices.Bluetooth;
 using IRIS.Bluetooth.Communication;
 using IRIS.Bluetooth.Data;
+using IRIS.Data;
 using IRIS.Devices;
 
 namespace IRIS.Bluetooth.Devices
@@ -39,8 +40,10 @@ namespace IRIS.Bluetooth.Devices
         /// <summary>
         /// Used to attach to endpoints events
         /// </summary>
-        protected virtual Task AttachOrLoadEndpoints()
-            => Task.CompletedTask;
+        protected virtual void AttachOrLoadEndpoints()
+        {
+            
+        }
 
         /// <summary>
         /// Used to detach from endpoints events
@@ -74,11 +77,8 @@ namespace IRIS.Bluetooth.Devices
             HardwareAccess.BluetoothDeviceDisconnected += HandleCommunicationFailed;
 
             // Attach to endpoints
-            Task attachOrLoadEndpoints = AttachOrLoadEndpoints();
-            
-            // Wait for endpoints to be attached
-            attachOrLoadEndpoints.Wait(cancellationToken);
-
+            AttachOrLoadEndpoints();
+           
             // Ensure that all required endpoints are attached
             if (CheckIfAllRequiredEndpointsAreValid()) return true;
 
@@ -159,7 +159,7 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="mode">Mode of the endpoint</param>
         /// <param name="potentialEndpoints">Potential endpoints to load</param>
         /// <returns>Endpoint if successful, null otherwise</returns>
-        protected async ValueTask<BluetoothLowEnergyEndpoint?> AttachEndpoint(
+        protected BluetoothLowEnergyEndpoint? AttachEndpoint(
             uint endpointIndex,
             BluetoothLowEnergyEndpoint.NotificationReceivedHandler notificationHandler,
             EndpointMode mode = EndpointMode.Required,
@@ -172,7 +172,7 @@ namespace IRIS.Bluetooth.Devices
                 foreach (Guid characteristicUUID in potentialEndpoint.CharacteristicUUIDs)
                 {
                     // Load endpoint
-                    BluetoothLowEnergyEndpoint? endpoint = await AttachEndpoint(endpointIndex, potentialEndpoint.ServiceUUID, characteristicUUID, notificationHandler, mode);
+                    BluetoothLowEnergyEndpoint? endpoint = AttachEndpoint(endpointIndex, potentialEndpoint.ServiceUUID, characteristicUUID, notificationHandler, mode);
                     
                     // Return endpoint if successful
                     if (endpoint != null) return endpoint;
@@ -190,7 +190,7 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="mode">Mode of the endpoint</param>
         /// <param name="potentialEndpoints">Potential endpoints to load</param>
         /// <returns>Endpoint if successful, null otherwise</returns>
-        protected async ValueTask<BluetoothLowEnergyEndpoint?> LoadEndpoint(
+        protected BluetoothLowEnergyEndpoint? LoadEndpoint(
             uint endpointIndex,
             EndpointMode mode = EndpointMode.Required,
             params PotentialEndpoint[] potentialEndpoints)
@@ -202,7 +202,7 @@ namespace IRIS.Bluetooth.Devices
                 foreach (Guid characteristicUUID in potentialEndpoint.CharacteristicUUIDs)
                 {
                     // Load endpoint
-                    BluetoothLowEnergyEndpoint? endpoint = await LoadEndpoint(endpointIndex, potentialEndpoint.ServiceUUID, characteristicUUID, mode);
+                    BluetoothLowEnergyEndpoint? endpoint = LoadEndpoint(endpointIndex, potentialEndpoint.ServiceUUID, characteristicUUID, mode);
                     
                     // Return endpoint if successful
                     if (endpoint != null) return endpoint;
@@ -222,17 +222,18 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="notificationHandler">Notification handler</param>
         /// <param name="mode">Mode of the endpoint</param>
         /// <returns>Endpoint if successful, null otherwise</returns>
-        protected async ValueTask<BluetoothLowEnergyEndpoint?> AttachEndpoint(
+        protected BluetoothLowEnergyEndpoint? AttachEndpoint(
             uint endpointIndex,
             Guid endpointService,
             int endpointCharacteristicIndex,
             BluetoothLowEnergyEndpoint.NotificationReceivedHandler notificationHandler,
             EndpointMode mode = EndpointMode.Required)
         {
-            BluetoothLowEnergyEndpoint? endpoint =
-                await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
-
-            return _AttachEndpoint(endpointIndex, endpoint, notificationHandler) ? endpoint : null;
+            DataPromise<BluetoothLowEnergyEndpoint> endpoint =
+                HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
+        
+            // Attach endpoint
+            return _AttachEndpoint(endpointIndex, endpoint.Data, notificationHandler) ? endpoint.Data : null;
         }
 
         /// <summary>
@@ -244,7 +245,7 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="notificationHandler">Notification handler</param>
         /// <param name="mode">Mode of the endpoint</param>
         /// <returns>Endpoint if successful, null otherwise</returns>
-        protected async ValueTask<BluetoothLowEnergyEndpoint?> AttachEndpoint(
+        protected BluetoothLowEnergyEndpoint? AttachEndpoint(
             uint endpointIndex,
             Guid endpointService,
             Guid endpointCharacteristic,
@@ -252,8 +253,9 @@ namespace IRIS.Bluetooth.Devices
             EndpointMode mode = EndpointMode.Required)
         {
             // Get endpoint
-            BluetoothLowEnergyEndpoint? endpoint = await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
-            return _AttachEndpoint(endpointIndex, endpoint, notificationHandler) ? endpoint : null;
+            DataPromise<BluetoothLowEnergyEndpoint> endpoint = HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
+  
+            return _AttachEndpoint(endpointIndex, endpoint.Data, notificationHandler) ? endpoint.Data : null;
         }
 
         /// <summary>
@@ -294,16 +296,16 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="endpointService">Service UUID</param>
         /// <param name="endpointCharacteristicIndex">Characteristic index</param>
         /// <param name="mode">Mode of the endpoint</param>
-        protected async ValueTask<BluetoothLowEnergyEndpoint?> LoadEndpoint(
+        protected BluetoothLowEnergyEndpoint? LoadEndpoint(
             uint endpointIndex,
             Guid endpointService,
             int endpointCharacteristicIndex,
             EndpointMode mode = EndpointMode.Required)
         {
-            BluetoothLowEnergyEndpoint? endpoint =
-                await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
+            DataPromise<BluetoothLowEnergyEndpoint> endpoint =
+                HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
 
-            return _LoadEndpoint(endpointIndex, endpoint, mode) ? endpoint : null;
+            return _LoadEndpoint(endpointIndex, endpoint.Data, mode) ? endpoint.Data : null;
         }
 
         /// <summary>
@@ -313,17 +315,17 @@ namespace IRIS.Bluetooth.Devices
         /// <param name="endpointService">Service UUID</param>
         /// <param name="endpointCharacteristic">Characteristic UUID</param>
         /// <param name="mode">Mode of the endpoint</param>
-        protected async ValueTask<BluetoothLowEnergyEndpoint?> LoadEndpoint(
+        protected BluetoothLowEnergyEndpoint? LoadEndpoint(
             uint endpointIndex,
             Guid endpointService,
             Guid endpointCharacteristic,
             EndpointMode mode = EndpointMode.Required)
         {
             // Get endpoint
-            BluetoothLowEnergyEndpoint? endpoint = await HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
-
+            DataPromise<BluetoothLowEnergyEndpoint> endpoint = HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
+            
             // Load endpoint
-            return _LoadEndpoint(endpointIndex, endpoint, mode) ? endpoint : null;
+            return _LoadEndpoint(endpointIndex, endpoint.Data, mode) ? endpoint.Data : null;
         }
 
         /// <summary>
@@ -365,7 +367,7 @@ namespace IRIS.Bluetooth.Devices
         /// Detach from an endpoint
         /// </summary>
         /// <param name="listIndex">Index of the endpoint in endpoints list</param>
-        private async void DetachOrUnloadEndpoint(int listIndex)
+        private void DetachOrUnloadEndpoint(int listIndex)
         {
             BluetoothLowEnergyEndpointInfo endpointInfo;
             
@@ -396,7 +398,7 @@ namespace IRIS.Bluetooth.Devices
 
             // Detach from endpoint, endpointInfo will be valid as otherwise lock statement will enforce
             // that we will not reach this point
-            await endpointInfo.Endpoint.SetNotify(false);
+            endpointInfo.Endpoint.SetNotify(false);
         }
     }
 }

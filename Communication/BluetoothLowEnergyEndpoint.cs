@@ -1,8 +1,10 @@
 ﻿using System.Runtime.CompilerServices;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
+using Windows.Foundation;
 using Windows.Storage.Streams;
 using IRIS.Bluetooth.Addressing;
 using IRIS.Bluetooth.Utility;
+using IRIS.Data;
 
 namespace IRIS.Bluetooth.Communication
 {
@@ -57,26 +59,48 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Read value from the characteristic
         /// </summary>
-        private async ValueTask<IBuffer?> ReadRawValue()
+        private DataPromise<IBuffer> ReadRawValue()
         {
-            GattReadResult result = await Characteristic.ReadValueAsync();
-            return result.Status != GattCommunicationStatus.Success ? null : result.Value;
+            IAsyncOperation<GattReadResult> operation = Characteristic.ReadValueAsync();
+
+            // Wait for operation to complete
+            while (operation.Status != AsyncStatus.Completed)
+            {
+                if (operation.Status is AsyncStatus.Error or AsyncStatus.Canceled)
+                    return DataPromise.FromFailure<IBuffer>();
+            }
+            
+            // Get result
+            GattReadResult? result = operation.GetResults();
+            
+            // Check if result is null
+            if(result == null) return DataPromise.FromFailure<IBuffer>();
+
+            // Check if status is OK
+            return result.Status != GattCommunicationStatus.Success
+                ? DataPromise.FromFailure<IBuffer>()
+                : DataPromise.FromSuccess(result.Value);
         }
 
         /// <summary>
         /// Write value to the characteristic
         /// </summary>
-        private async ValueTask<bool> WriteRawValue(IBuffer buffer)
+        private bool WriteRawValue(IBuffer buffer)
         {
-            GattCommunicationStatus status = await Characteristic.WriteValueAsync(buffer);
+            IAsyncOperation<GattCommunicationStatus> operation = Characteristic.WriteValueAsync(buffer);
+            
+            // Wait for operation to complete
+            while (operation.Status != AsyncStatus.Completed)
+            {
+                if (operation.Status is AsyncStatus.Error or AsyncStatus.Canceled)
+                    return false;
+            }
+            
+            // Get result
+            GattCommunicationStatus status = operation.GetResults();
+            
+            // Check if status is OK
             return status == GattCommunicationStatus.Success;
-        }
-
-        public async ValueTask<(bool, TObjectType?)> WriteWithResponse<TObjectType>()
-        {
-            IBuffer? buffer = await ReadRawValue();
-            if (buffer == null) return (false, default);
-            return buffer.Read<TObjectType>();
         }
 
         /// <summary>
@@ -84,46 +108,56 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <returns>True if write was successful, false otherwise</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public async ValueTask<bool> Write<TObjectType>(TObjectType data)
+        public bool Write<TObjectType>(TObjectType data)
         {
             // Convert data to buffer
             IBuffer? buffer = data.ToBuffer();
-            if (buffer == null) return false;
-
-            // Write data
-            return await WriteRawValue(buffer);
+            return buffer != null && WriteRawValue(buffer);
         }
 
         /// <summary>
         /// Read data from the characteristic
         /// </summary>
         /// <returns>Value of the characteristic or null if type is not supported or read failed</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)] public async ValueTask<TObjectType?> ReadData<TObjectType>()
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public DataPromise<TObjectType> ReadData<TObjectType>()
         {
             // Read raw value
-            IBuffer? buffer = await ReadRawValue();
-            if (buffer == null) return default;
+            DataPromise<IBuffer> buffer = ReadRawValue();
+            if (!buffer.HasData) return DataPromise.FromFailure<TObjectType>();
 
-            // Read data
-            (bool success, TObjectType? data) = buffer.Read<TObjectType>();
-            return success ? data : default;
+            // Convert buffer to data
+            DataPromise<TObjectType> data = buffer.Data.Read<TObjectType>();
+            
+            // Return data
+            return data;
         }
 
         /// <summary>
         /// Set notify for this characteristic
         /// </summary>
-        public async ValueTask<bool> SetNotify(bool shallNotify)
+        public bool SetNotify(bool shallNotify)
         {
             // Check if service supports notify
             if (!Characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify))
                 return false;
 
             // Set notify
-            GattCommunicationStatus status =
-                await Characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
+            IAsyncOperation<GattCommunicationStatus>? operation =
+                Characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(
                     shallNotify
                         ? GattClientCharacteristicConfigurationDescriptorValue.Notify
                         : GattClientCharacteristicConfigurationDescriptorValue.None);
+
+            // Wait for operation to complete
+            while (operation.Status != AsyncStatus.Completed)
+            {
+                if (operation.Status == AsyncStatus.Error || operation.Status == AsyncStatus.Canceled)
+                    return false;
+            }
+
+            // Get result
+            GattCommunicationStatus status = operation.GetResults();
 
             // Check if status is OK
             if (status != GattCommunicationStatus.Success) return false;
