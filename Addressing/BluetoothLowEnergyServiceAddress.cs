@@ -87,5 +87,7 @@ namespace IRIS.Bluetooth.Addressing
                 OutOfRangeTimeout = TimeSpan.FromSeconds(timeoutSeconds),
             };
         }
+        
+        public override string ToString() => $"{ServiceUUID}";
     }
 }
