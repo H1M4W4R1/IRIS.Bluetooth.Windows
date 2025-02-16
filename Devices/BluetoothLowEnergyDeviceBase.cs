@@ -71,7 +71,7 @@ namespace IRIS.Bluetooth.Devices
             DeviceState = BluetoothDeviceState.Connected;
 
             // Handle disconnection
-            HardwareAccess.OnDeviceDisconnected += HandleCommunicationFailed;
+            HardwareAccess.BluetoothDeviceDisconnected += HandleCommunicationFailed;
 
             // Attach to endpoints
             await AttachOrLoadEndpoints();
@@ -92,7 +92,7 @@ namespace IRIS.Bluetooth.Devices
             // Begin disconnection
             DeviceState = BluetoothDeviceState.Disconnecting;
 
-            HardwareAccess.OnDeviceDisconnected -= HandleCommunicationFailed;
+            HardwareAccess.BluetoothDeviceDisconnected -= HandleCommunicationFailed;
 
             // Detach from endpoints
             await DetachOrUnloadAllEndpoints();

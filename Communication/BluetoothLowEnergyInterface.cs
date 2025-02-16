@@ -3,13 +3,15 @@ using Windows.Devices.Bluetooth.Advertisement;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using IRIS.Bluetooth.Addressing;
 using IRIS.Communication;
+using static IRIS.Bluetooth.Communication.Delegates;
+using static IRIS.Communication.Delegates;
 
 namespace IRIS.Bluetooth.Communication
 {
     /// <summary>
     /// Base Interface for Bluetooth Low Energy communication
     /// </summary>
-    public sealed class BluetoothLowEnergyInterface : ICommunicationInterface
+    public sealed class BluetoothLowEnergyInterface : ICommunicationInterface<IBluetoothLowEnergyAddress>
     {
         /// <summary>
         /// Address of current device
@@ -47,8 +49,11 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         private readonly BluetoothLEAdvertisementWatcher _watcher;
 
-        public event DeviceConnected OnDeviceConnected = delegate { };
-        public event DeviceDisconnected OnDeviceDisconnected = delegate { };
+        public event DeviceConnectedHandler<IBluetoothLowEnergyAddress>? DeviceConnected;
+        public event DeviceDisconnectedHandler<IBluetoothLowEnergyAddress>? DeviceDisconnected;
+        public event DeviceConnectionLostHandler<IBluetoothLowEnergyAddress>? DeviceConnectionLost;
+        public event BluetoothDeviceConnectedHandler BluetoothDeviceConnected = delegate { };
+        public event BluetoothDeviceDisconnectedHandler BluetoothDeviceDisconnected = delegate { };
 
         public async ValueTask<bool> Connect(CancellationToken cancellationToken = default)
         {
@@ -69,7 +74,6 @@ namespace IRIS.Bluetooth.Communication
             // Stop scanning for devices
             _watcher.Stop();
             _watcher.Received -= OnAdvertisementReceived;
-
             return true;
         }
 
@@ -88,7 +92,8 @@ namespace IRIS.Bluetooth.Communication
                 if (ConnectedDevice == null) return ValueTask.FromResult(true);
 
                 // Send events
-                OnDeviceDisconnected(DeviceBluetoothAddress, ConnectedDevice);
+                BluetoothDeviceDisconnected(DeviceBluetoothAddress, ConnectedDevice);
+                DeviceDisconnected?.Invoke(DeviceAddress);
                 ConnectedDevice.Dispose();
                 ConnectedDevice = null;
             }
@@ -160,10 +165,11 @@ namespace IRIS.Bluetooth.Communication
                 ConnectedDevices.Add(args.BluetoothAddress);
                 DeviceBluetoothAddress = args.BluetoothAddress;
                 ConnectedDevice = device;
-                OnDeviceConnected(DeviceBluetoothAddress, device);
+                BluetoothDeviceConnected(DeviceBluetoothAddress, device);
+                DeviceConnected?.Invoke(DeviceAddress);
             }
         }
-        
+
         /// <summary>
         /// Gets endpoint for specified service and characteristic UUID
         /// </summary>
@@ -181,14 +187,16 @@ namespace IRIS.Bluetooth.Communication
             // Get characteristic
             return await FindEndpoint(service, characteristicUUID);
         }
-        
+
         /// <summary>
         /// Gets endpoint for specified service and characteristic UUID
         /// </summary>
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicUUID">UUID of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(GattDeviceService? service, Guid characteristicUUID)
+        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(
+            GattDeviceService? service,
+            Guid characteristicUUID)
         {
             // Get service
             if (service == null) return null;
@@ -220,14 +228,16 @@ namespace IRIS.Bluetooth.Communication
             // Get characteristic
             return await FindEndpoint(service, characteristicIndex);
         }
-        
+
         /// <summary>
         /// Finds endpoint for specified service and characteristic index
         /// </summary>
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(GattDeviceService? service, int characteristicIndex)
+        public async ValueTask<BluetoothLowEnergyEndpoint?> FindEndpoint(
+            GattDeviceService? service,
+            int characteristicIndex)
         {
             // Get service
             if (service == null) return null;
@@ -366,6 +376,7 @@ namespace IRIS.Bluetooth.Communication
             switch (characteristic.Status)
             {
                 case GattCommunicationStatus.Unreachable:
+                    DeviceConnectionLost?.Invoke(DeviceAddress);
                     await Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
@@ -409,6 +420,7 @@ namespace IRIS.Bluetooth.Communication
             switch (characteristics.Status)
             {
                 case GattCommunicationStatus.Unreachable:
+                    DeviceConnectionLost?.Invoke(DeviceAddress);
                     await Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
@@ -459,6 +471,7 @@ namespace IRIS.Bluetooth.Communication
             switch (services.Status)
             {
                 case GattCommunicationStatus.Unreachable:
+                    DeviceConnectionLost?.Invoke(DeviceAddress);
                     await Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
