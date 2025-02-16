@@ -11,6 +11,7 @@ namespace IRIS.Bluetooth.Communication
     /// <summary>
     /// Base Interface for Bluetooth Low Energy communication
     /// </summary>
+    // TODO: Synchronize async operations to thread this was called from
     public sealed class BluetoothLowEnergyInterface : ICommunicationInterface<IBluetoothLowEnergyAddress>
     {
         /// <summary>
@@ -55,7 +56,7 @@ namespace IRIS.Bluetooth.Communication
         public event BluetoothDeviceConnectedHandler BluetoothDeviceConnected = delegate { };
         public event BluetoothDeviceDisconnectedHandler BluetoothDeviceDisconnected = delegate { };
 
-        public async ValueTask<bool> Connect(CancellationToken cancellationToken = default)
+        public bool Connect(CancellationToken cancellationToken = default)
         {
             // Check if device is already connected
             if (IsConnected) return true;
@@ -68,7 +69,6 @@ namespace IRIS.Bluetooth.Communication
             while (!IsConnected)
             {
                 if (cancellationToken.IsCancellationRequested) return false;
-                await Task.Yield();
             }
 
             // Stop scanning for devices
@@ -77,10 +77,10 @@ namespace IRIS.Bluetooth.Communication
             return true;
         }
 
-        public ValueTask<bool> Disconnect(CancellationToken cancellationToken = default)
+        public bool Disconnect()
         {
             // Check if device is connected, if not - return
-            if (!IsConnected) return ValueTask.FromResult(true);
+            if (!IsConnected) return true;
 
             lock (ConnectedDevices)
             {
@@ -89,7 +89,7 @@ namespace IRIS.Bluetooth.Communication
                 DeviceBluetoothAddress = 0;
 
                 // Disconnect from device if connected
-                if (ConnectedDevice == null) return ValueTask.FromResult(true);
+                if (ConnectedDevice == null) return true;
 
                 // Send events
                 BluetoothDeviceDisconnected(DeviceBluetoothAddress, ConnectedDevice);
@@ -98,7 +98,7 @@ namespace IRIS.Bluetooth.Communication
                 ConnectedDevice = null;
             }
 
-            return ValueTask.FromResult(true);
+            return true;
         }
 
         /// <summary>
@@ -377,7 +377,7 @@ namespace IRIS.Bluetooth.Communication
             {
                 case GattCommunicationStatus.Unreachable:
                     DeviceConnectionLost?.Invoke(DeviceAddress);
-                    await Disconnect();
+                    Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
                 default: return null;
@@ -421,7 +421,7 @@ namespace IRIS.Bluetooth.Communication
             {
                 case GattCommunicationStatus.Unreachable:
                     DeviceConnectionLost?.Invoke(DeviceAddress);
-                    await Disconnect();
+                    Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
                 default: return null;
@@ -472,7 +472,7 @@ namespace IRIS.Bluetooth.Communication
             {
                 case GattCommunicationStatus.Unreachable:
                     DeviceConnectionLost?.Invoke(DeviceAddress);
-                    await Disconnect();
+                    Disconnect();
                     return null;
                 case GattCommunicationStatus.Success: break;
                 default: return null;

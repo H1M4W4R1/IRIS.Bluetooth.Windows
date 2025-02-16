@@ -39,22 +39,22 @@ namespace IRIS.Bluetooth.Devices
         /// <summary>
         /// Used to attach to endpoints events
         /// </summary>
-        protected virtual ValueTask AttachOrLoadEndpoints()
-            => ValueTask.CompletedTask;
+        protected virtual Task AttachOrLoadEndpoints()
+            => Task.CompletedTask;
 
         /// <summary>
         /// Used to detach from endpoints events
         /// </summary>
-        private async ValueTask DetachOrUnloadAllEndpoints()
+        private void DetachOrUnloadAllEndpoints()
         {
             // Loop through all endpoints and detach from events
             for (int index = 0; index < Endpoints.Count; index++)
             {
-                await DetachOrUnloadEndpoint(index);
+                DetachOrUnloadEndpoint(index);
             }
         }
 
-        public sealed override async ValueTask<bool> Connect(CancellationToken cancellationToken = default)
+        public sealed override bool Connect(CancellationToken cancellationToken = default)
         {
             // Check if device is already connected
             if (IsConnected) return true;
@@ -65,7 +65,7 @@ namespace IRIS.Bluetooth.Devices
             // Try to connect to device
             // We don't need to subscribe to device connected event as
             // interface will wait for device to be connected
-            if (!await base.Connect(cancellationToken)) return false;
+            if (!base.Connect(cancellationToken)) return false;
 
             // Connection successful
             DeviceState = BluetoothDeviceState.Connected;
@@ -74,20 +74,23 @@ namespace IRIS.Bluetooth.Devices
             HardwareAccess.BluetoothDeviceDisconnected += HandleCommunicationFailed;
 
             // Attach to endpoints
-            await AttachOrLoadEndpoints();
+            Task attachOrLoadEndpoints = AttachOrLoadEndpoints();
+            
+            // Wait for endpoints to be attached
+            attachOrLoadEndpoints.Wait(cancellationToken);
 
             // Ensure that all required endpoints are attached
             if (CheckIfAllRequiredEndpointsAreValid()) return true;
 
             // Disconnect if required endpoints are not attached
-            await Disconnect(cancellationToken);
+            Disconnect(cancellationToken);
             return false;
         }
 
         /// <summary>
         /// Disconnect from the device
         /// </summary>
-        public sealed override async ValueTask<bool> Disconnect(CancellationToken cancellationToken = default)
+        public sealed override bool Disconnect(CancellationToken cancellationToken = default)
         {
             // Begin disconnection
             DeviceState = BluetoothDeviceState.Disconnecting;
@@ -95,21 +98,21 @@ namespace IRIS.Bluetooth.Devices
             HardwareAccess.BluetoothDeviceDisconnected -= HandleCommunicationFailed;
 
             // Detach from endpoints
-            await DetachOrUnloadAllEndpoints();
+            DetachOrUnloadAllEndpoints();
 
             // Guarantee that all endpoints and notification handlers are cleared
             Endpoints.Clear();
 
-            if (!await base.Disconnect(cancellationToken)) return false;
+            if (!base.Disconnect(cancellationToken)) return false;
 
             // Disconnection successful
             DeviceState = BluetoothDeviceState.Disconnected;
             return true;
         }
 
-        private async void HandleCommunicationFailed(ulong address, BluetoothLEDevice device)
+        private void HandleCommunicationFailed(ulong address, BluetoothLEDevice device)
         {
-            await Disconnect();
+            Disconnect();
         }
 
         /// <summary>
@@ -362,7 +365,7 @@ namespace IRIS.Bluetooth.Devices
         /// Detach from an endpoint
         /// </summary>
         /// <param name="listIndex">Index of the endpoint in endpoints list</param>
-        private async ValueTask DetachOrUnloadEndpoint(int listIndex)
+        private async void DetachOrUnloadEndpoint(int listIndex)
         {
             BluetoothLowEnergyEndpointInfo endpointInfo;
             
