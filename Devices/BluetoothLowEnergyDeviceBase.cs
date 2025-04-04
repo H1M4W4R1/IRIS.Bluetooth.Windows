@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Windows.Devices.Bluetooth;
+using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using IRIS.Bluetooth.Communication;
 using IRIS.Bluetooth.Data;
 using IRIS.Data;
@@ -151,6 +152,85 @@ namespace IRIS.Bluetooth.Devices
             return true;
         }
 
+        /// <summary>
+        /// Attach to an notify-type endpoint using the service UUID
+        /// </summary>
+        /// <param name="endpointIndex">Index of the endpoint</param>
+        /// <param name="notificationHandler">Notification handler</param>
+        /// <param name="mode">Mode of the endpoint</param>
+        /// <param name="serviceUUIDs">Service UUIDs to attach to</param>
+        /// <returns>>Endpoint if successful, null otherwise</returns>
+        protected BluetoothLowEnergyEndpoint? AttachRXEndpoint(
+            uint endpointIndex,
+            BluetoothLowEnergyEndpoint.NotificationReceivedHandler notificationHandler,
+            EndpointMode mode = EndpointMode.Required,
+            params Guid[] serviceUUIDs)
+        {
+            // Loop through all service UUIDs and try to load the endpoint
+            foreach (Guid serviceUUID in serviceUUIDs)
+            {
+                // Get all endpoints for the service UUID
+                DataPromise<IReadOnlyList<GattCharacteristic>> characteristicUUIDs = HardwareAccess.GetAllCharacteristics(serviceUUID);
+                
+                // Check if characteristic UUIDs are null
+                if (!characteristicUUIDs.HasData) return null;
+                
+                // Loop through all characteristic UUIDs and try to load the endpoint if it can be notified
+                BluetoothLowEnergyEndpoint? endpoint = null;
+                foreach (GattCharacteristic characteristic in characteristicUUIDs.Data)
+                {
+                    // Check if characteristic can be notified, if so, attach to it
+                    if (characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify))
+                        endpoint = AttachEndpoint(endpointIndex, serviceUUID, characteristic.Uuid, notificationHandler, mode);
+                }
+               
+                // Return endpoint if successful
+                if (endpoint != null) return endpoint;
+            }
+
+            // Return null if no endpoint was found
+            return null;
+        }
+        
+        /// <summary>
+        /// Load a TX endpoint using the service UUID
+        /// </summary>
+        /// <param name="endpointIndex">Index of the endpoint</param>
+        /// <param name="mode">Mode of the endpoint</param>
+        /// <param name="serviceUUIDs">Service UUIDs to load</param>
+        /// <returns>>Endpoint if successful, null otherwise</returns>
+        protected BluetoothLowEnergyEndpoint? LoadTXEndpoint(
+            uint endpointIndex,
+            EndpointMode mode = EndpointMode.Required,
+            params Guid[] serviceUUIDs)
+        {
+            // Loop through all service UUIDs and try to load the endpoint
+            foreach (Guid serviceUUID in serviceUUIDs)
+            {
+                // Get all endpoints for the service UUID
+                DataPromise<IReadOnlyList<GattCharacteristic>> characteristicUUIDs = HardwareAccess.GetAllCharacteristics(serviceUUID);
+                
+                // Check if characteristic UUIDs are null
+                if (!characteristicUUIDs.HasData) return null;
+                
+                // Loop through all characteristic UUIDs and try to load the endpoint if it can be notified
+                BluetoothLowEnergyEndpoint? endpoint = null;
+                foreach (GattCharacteristic characteristic in characteristicUUIDs.Data)
+                {
+                    // Check if characteristic can be notified, if so, attach to it
+                    if (characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Write) ||
+                        characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.WriteWithoutResponse))
+                        endpoint = LoadEndpoint(endpointIndex, serviceUUID, characteristic.Uuid, mode);
+                }
+               
+                // Return endpoint if successful
+                if (endpoint != null) return endpoint;
+            }
+
+            // Return null if no endpoint was found
+            return null;
+        }
+        
         /// <summary>
         /// Attach to an endpoint by potential endpoints
         /// </summary>
