@@ -6,34 +6,22 @@ namespace IRIS.Bluetooth.Communication
     /// <summary>
     /// Represents a Bluetooth Low Energy Serial connection
     /// </summary>
-    public struct BluetoothLowEnergySerial
+    public sealed class BluetoothLowEnergySerial(BluetoothLowEnergyEndpoint tx, BluetoothLowEnergyEndpoint rx)
     {
-        private BluetoothLowEnergyEndpoint? _txEndpoint;
-        private BluetoothLowEnergyEndpoint? _rxEndpoint;
-
-        /// <summary>
-        /// Sets the TX endpoint for the Bluetooth Low Energy Serial connection
-        /// </summary>
-        public void SetTxEndpoint(BluetoothLowEnergyEndpoint txEndpoint) => _txEndpoint = txEndpoint;
-
-        /// <summary>
-        /// Sets the RX endpoint for the Bluetooth Low Energy Serial connection
-        /// </summary>
-        public void SetRxEndpoint(BluetoothLowEnergyEndpoint rxEndpoint) => _rxEndpoint = rxEndpoint;
-
+        private readonly BluetoothLowEnergyEndpoint? _txEndpoint = tx;
+        private readonly BluetoothLowEnergyEndpoint? _rxEndpoint = rx;
+        
         /// <summary>
         /// Writes a string to the TX endpoint
         /// </summary>
         /// <param name="message">>String to write to the TX endpoint</param>
-        public void Write(string message) =>
-            _txEndpoint?.Write(message);
+        public void Write(string message) => _txEndpoint?.Write(message);
 
         /// <summary>
         /// Writes raw data to the TX endpoint
         /// </summary>
         /// <param name="data">>Raw data to write to the TX endpoint</param>
-        public void WriteRawData(byte[] data) =>
-            _txEndpoint?.Write(data);
+        public void WriteRawData(byte[] data) => _txEndpoint?.Write(data);
 
         /// <summary>
         /// Reads raw data from the RX endpoint
