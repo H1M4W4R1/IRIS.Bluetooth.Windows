@@ -47,6 +47,14 @@ namespace IRIS.Bluetooth.Devices
         }
 
         /// <summary>
+        /// Called when the device is connected successfully
+        /// </summary>
+        protected virtual void OnSuccessfulConnection()
+        {
+            
+        }
+
+        /// <summary>
         /// Used to detach from endpoints events
         /// </summary>
         private void DetachOrUnloadAllEndpoints()
@@ -81,7 +89,11 @@ namespace IRIS.Bluetooth.Devices
             AttachOrLoadEndpoints();
            
             // Ensure that all required endpoints are attached
-            if (CheckIfAllRequiredEndpointsAreValid()) return true;
+            if (CheckIfAllRequiredEndpointsAreValid())
+            {
+                OnSuccessfulConnection();
+                return true;
+            }
 
             // Disconnect if required endpoints are not attached
             Disconnect(cancellationToken);
