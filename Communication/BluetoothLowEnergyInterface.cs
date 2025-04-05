@@ -1,4 +1,5 @@
-﻿using Windows.Devices.Bluetooth;
+﻿using System.Runtime.InteropServices;
+using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Foundation;
@@ -64,19 +65,27 @@ namespace IRIS.Bluetooth.Communication
             if (IsConnected) return true;
 
             // Start scanning for devices
-            _watcher.Received += OnAdvertisementReceived;
-            _watcher.Start();
-
-            // Wait for connection
-            while (!IsConnected)
+            try
             {
-                if (cancellationToken.IsCancellationRequested) return false;
-            }
+                _watcher.Received += OnAdvertisementReceived;
+                _watcher.Start();
 
-            // Stop scanning for devices
-            _watcher.Stop();
-            _watcher.Received -= OnAdvertisementReceived;
-            return true;
+                // Wait for connection
+                while (!IsConnected)
+                {
+                    if (cancellationToken.IsCancellationRequested) return false;
+                }
+
+                // Stop scanning for devices
+                _watcher.Stop();
+                _watcher.Received -= OnAdvertisementReceived;
+                return true;
+            }
+            catch (COMException) // When adapter is not available, hope no other exceptions are allocated here
+            {
+                _watcher.Received -= OnAdvertisementReceived;
+                return false;
+            }
         }
 
         public bool Disconnect()
