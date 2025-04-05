@@ -146,6 +146,20 @@ namespace IRIS.Bluetooth.Communication
             };
         }
 
+        public BluetoothLowEnergyInterface(ulong deviceBluetoothAddress)
+        {
+            // Create new service address
+            DeviceAddress = new BluetoothLowEnergyDeviceIdentifierAddress(deviceBluetoothAddress);
+
+            // Create new watcher for service address
+            _watcher = new BluetoothLEAdvertisementWatcher()
+            {
+                ScanningMode = BluetoothLEScanningMode.Active,
+                AdvertisementFilter = DeviceAddress.GetAdvertisementFilter(),
+                SignalStrengthFilter = DeviceAddress.GetSignalStrengthFilter()
+            };
+        }
+
         private void OnAdvertisementReceived(
             BluetoothLEAdvertisementWatcher watcher,
             BluetoothLEAdvertisementReceivedEventArgs args)

@@ -48,6 +48,11 @@ namespace IRIS.Bluetooth.Devices
         {
             HardwareAccess = new BluetoothLowEnergyInterface(serviceUUID);
         }
+        
+        public BluetoothLowEnergyDeviceBase(ulong deviceAddress)
+        {
+            HardwareAccess = new BluetoothLowEnergyInterface(deviceAddress);
+        }
 
         /// <summary>
         /// Used to attach to endpoints events
