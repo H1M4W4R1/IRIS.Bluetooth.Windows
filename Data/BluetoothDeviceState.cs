@@ -4,6 +4,7 @@
     {
         Unknown,
         Connecting,
+        SearchingForEndpoints,
         Connected,
         Disconnecting,
         Disconnected

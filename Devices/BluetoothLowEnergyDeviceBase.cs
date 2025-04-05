@@ -28,6 +28,17 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         public bool IsConnected => DeviceState == BluetoothDeviceState.Connected;
 
+        /// <summary>
+        /// Check if the device is connecting
+        /// </summary>
+        public bool IsConnectedOrConnecting => DeviceState != BluetoothDeviceState.Disconnected &&
+                                               DeviceState != BluetoothDeviceState.Disconnecting;
+
+        /// <summary>
+        /// Flag to check if endpoints are attached
+        /// </summary>
+        public bool AreEndpointsAttached { get; private set; }
+
         public BluetoothLowEnergyDeviceBase(string deviceNameRegex)
         {
             HardwareAccess = new BluetoothLowEnergyInterface(deviceNameRegex);
@@ -43,7 +54,6 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         protected virtual void AttachOrLoadEndpoints()
         {
-            
         }
 
         /// <summary>
@@ -51,7 +61,6 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         protected virtual void OnSuccessfulConnection()
         {
-            
         }
 
         /// <summary>
@@ -79,19 +88,23 @@ namespace IRIS.Bluetooth.Devices
             // interface will wait for device to be connected
             if (!base.Connect(cancellationToken)) return false;
 
-            // Connection successful
-            DeviceState = BluetoothDeviceState.Connected;
-
             // Handle disconnection
             HardwareAccess.BluetoothDeviceDisconnected += HandleCommunicationFailed;
 
+            // Search for endpoints 
+            DeviceState = BluetoothDeviceState.SearchingForEndpoints;
+
             // Attach to endpoints
             AttachOrLoadEndpoints();
-           
+
             // Ensure that all required endpoints are attached
             if (CheckIfAllRequiredEndpointsAreValid())
             {
                 OnSuccessfulConnection();
+
+                // Connection successful
+                DeviceState = BluetoothDeviceState.Connected;
+
                 return true;
             }
 
@@ -107,6 +120,7 @@ namespace IRIS.Bluetooth.Devices
         {
             // Begin disconnection
             DeviceState = BluetoothDeviceState.Disconnecting;
+            AreEndpointsAttached = false;
 
             HardwareAccess.BluetoothDeviceDisconnected -= HandleCommunicationFailed;
 
@@ -133,7 +147,8 @@ namespace IRIS.Bluetooth.Devices
         /// </summary>
         /// <param name="endpointIndex">Endpoint index</param>
         /// <returns>Endpoint if found, null otherwise</returns>
-        protected BluetoothLowEnergyEndpoint? GetEndpoint(uint endpointIndex) => GetEndpointInfo(endpointIndex)?.Endpoint;
+        protected BluetoothLowEnergyEndpoint? GetEndpoint(uint endpointIndex)
+            => GetEndpointInfo(endpointIndex)?.Endpoint;
 
         /// <summary>
         /// Get endpoint info by index
@@ -182,20 +197,22 @@ namespace IRIS.Bluetooth.Devices
             foreach (Guid serviceUUID in serviceUUIDs)
             {
                 // Get all endpoints for the service UUID
-                DataPromise<IReadOnlyList<GattCharacteristic>> characteristicUUIDs = HardwareAccess.GetAllCharacteristics(serviceUUID);
-                
+                DataPromise<IReadOnlyList<GattCharacteristic>> characteristicUUIDs =
+                    HardwareAccess.GetAllCharacteristics(serviceUUID);
+
                 // Check if characteristic UUIDs are null
-                if (!characteristicUUIDs.HasData) return null;
-                
+                if (!characteristicUUIDs.HasData) continue;
+
                 // Loop through all characteristic UUIDs and try to load the endpoint if it can be notified
                 BluetoothLowEnergyEndpoint? endpoint = null;
                 foreach (GattCharacteristic characteristic in characteristicUUIDs.Data)
                 {
                     // Check if characteristic can be notified, if so, attach to it
                     if (characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify))
-                        endpoint = AttachEndpoint(endpointIndex, serviceUUID, characteristic.Uuid, notificationHandler, mode);
+                        endpoint = AttachEndpoint(endpointIndex, serviceUUID, characteristic.Uuid,
+                            notificationHandler, mode);
                 }
-               
+
                 // Return endpoint if successful
                 if (endpoint != null) return endpoint;
             }
@@ -203,7 +220,7 @@ namespace IRIS.Bluetooth.Devices
             // Return null if no endpoint was found
             return null;
         }
-        
+
         /// <summary>
         /// Load a TX endpoint using the service UUID
         /// </summary>
@@ -220,21 +237,23 @@ namespace IRIS.Bluetooth.Devices
             foreach (Guid serviceUUID in serviceUUIDs)
             {
                 // Get all endpoints for the service UUID
-                DataPromise<IReadOnlyList<GattCharacteristic>> characteristicUUIDs = HardwareAccess.GetAllCharacteristics(serviceUUID);
-                
+                DataPromise<IReadOnlyList<GattCharacteristic>> characteristicUUIDs =
+                    HardwareAccess.GetAllCharacteristics(serviceUUID);
+
                 // Check if characteristic UUIDs are null
-                if (!characteristicUUIDs.HasData) return null;
-                
+                if (!characteristicUUIDs.HasData) continue;
+
                 // Loop through all characteristic UUIDs and try to load the endpoint if it can be notified
                 BluetoothLowEnergyEndpoint? endpoint = null;
                 foreach (GattCharacteristic characteristic in characteristicUUIDs.Data)
                 {
                     // Check if characteristic can be notified, if so, attach to it
                     if (characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Write) ||
-                        characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties.WriteWithoutResponse))
+                        characteristic.CharacteristicProperties.HasFlag(GattCharacteristicProperties
+                            .WriteWithoutResponse))
                         endpoint = LoadEndpoint(endpointIndex, serviceUUID, characteristic.Uuid, mode);
                 }
-               
+
                 // Return endpoint if successful
                 if (endpoint != null) return endpoint;
             }
@@ -242,7 +261,7 @@ namespace IRIS.Bluetooth.Devices
             // Return null if no endpoint was found
             return null;
         }
-        
+
         /// <summary>
         /// Attach to an endpoint by potential endpoints
         /// </summary>
@@ -264,8 +283,9 @@ namespace IRIS.Bluetooth.Devices
                 foreach (Guid characteristicUUID in potentialEndpoint.CharacteristicUUIDs)
                 {
                     // Load endpoint
-                    BluetoothLowEnergyEndpoint? endpoint = AttachEndpoint(endpointIndex, potentialEndpoint.ServiceUUID, characteristicUUID, notificationHandler, mode);
-                    
+                    BluetoothLowEnergyEndpoint? endpoint = AttachEndpoint(endpointIndex,
+                        potentialEndpoint.ServiceUUID, characteristicUUID, notificationHandler, mode);
+
                     // Return endpoint if successful
                     if (endpoint != null) return endpoint;
                 }
@@ -274,7 +294,7 @@ namespace IRIS.Bluetooth.Devices
             // Return null if no endpoint was found
             return null;
         }
-        
+
         /// <summary>
         /// Loads endpoint by potential endpoints
         /// </summary>
@@ -294,8 +314,9 @@ namespace IRIS.Bluetooth.Devices
                 foreach (Guid characteristicUUID in potentialEndpoint.CharacteristicUUIDs)
                 {
                     // Load endpoint
-                    BluetoothLowEnergyEndpoint? endpoint = LoadEndpoint(endpointIndex, potentialEndpoint.ServiceUUID, characteristicUUID, mode);
-                    
+                    BluetoothLowEnergyEndpoint? endpoint = LoadEndpoint(endpointIndex,
+                        potentialEndpoint.ServiceUUID, characteristicUUID, mode);
+
                     // Return endpoint if successful
                     if (endpoint != null) return endpoint;
                 }
@@ -323,7 +344,7 @@ namespace IRIS.Bluetooth.Devices
         {
             DataPromise<BluetoothLowEnergyEndpoint> endpoint =
                 HardwareAccess.FindEndpoint(endpointService, endpointCharacteristicIndex);
-        
+
             // Attach endpoint
             return _AttachEndpoint(endpointIndex, endpoint.Data, notificationHandler) ? endpoint.Data : null;
         }
@@ -345,8 +366,9 @@ namespace IRIS.Bluetooth.Devices
             EndpointMode mode = EndpointMode.Required)
         {
             // Get endpoint
-            DataPromise<BluetoothLowEnergyEndpoint> endpoint = HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
-  
+            DataPromise<BluetoothLowEnergyEndpoint> endpoint =
+                HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
+
             return _AttachEndpoint(endpointIndex, endpoint.Data, notificationHandler) ? endpoint.Data : null;
         }
 
@@ -362,7 +384,8 @@ namespace IRIS.Bluetooth.Devices
             lock (Endpoints)
             {
                 // Check if endpoint already exists add notification handler and return
-                BluetoothLowEnergyEndpointInfo foundEndpoint = Endpoints.FirstOrDefault(x => x.EndpointIndex == endpointIndex);
+                BluetoothLowEnergyEndpointInfo foundEndpoint =
+                    Endpoints.FirstOrDefault(x => x.EndpointIndex == endpointIndex);
                 if (foundEndpoint.Endpoint is {IsNotifyAvailable: true})
                 {
                     foundEndpoint.AddNotificationHandler(notificationHandler);
@@ -373,7 +396,7 @@ namespace IRIS.Bluetooth.Devices
                 if (foundEndpoint.Endpoint != null) return false;
 
                 // Add endpoint
-                if(!_LoadEndpoint(endpointIndex, endpoint, mode)) return false;
+                if (!_LoadEndpoint(endpointIndex, endpoint, mode)) return false;
 
                 // Attach notification handler
                 Endpoints[^1].AddNotificationHandler(notificationHandler);
@@ -414,8 +437,9 @@ namespace IRIS.Bluetooth.Devices
             EndpointMode mode = EndpointMode.Required)
         {
             // Get endpoint
-            DataPromise<BluetoothLowEnergyEndpoint> endpoint = HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
-            
+            DataPromise<BluetoothLowEnergyEndpoint> endpoint =
+                HardwareAccess.FindEndpoint(endpointService, endpointCharacteristic);
+
             // Load endpoint
             return _LoadEndpoint(endpointIndex, endpoint.Data, mode) ? endpoint.Data : null;
         }
@@ -434,9 +458,9 @@ namespace IRIS.Bluetooth.Devices
             {
                 // Skip if endpoint index does not match
                 if (Endpoints[i].EndpointIndex != endpointIndex) continue;
-                
+
                 // Check if endpoint already exists and is assigned
-                if(Endpoints[i].Endpoint != null)
+                if (Endpoints[i].Endpoint != null)
                 {
                     Debug.WriteLine("Endpoint with same index already exists");
                     return false;
@@ -444,12 +468,12 @@ namespace IRIS.Bluetooth.Devices
 
                 // Do not allocate memory if both endpoints are null
                 if (endpoint == null) return true;
-                
+
                 // Update endpoint with new one
                 Endpoints[i] = new BluetoothLowEnergyEndpointInfo(endpointIndex, endpoint, mode);
                 return true;
             }
-            
+
             // Add new endpoint
             Endpoints.Add(new BluetoothLowEnergyEndpointInfo(endpointIndex, endpoint, mode));
             return true;
@@ -462,7 +486,7 @@ namespace IRIS.Bluetooth.Devices
         private void DetachOrUnloadEndpoint(int listIndex)
         {
             BluetoothLowEnergyEndpointInfo endpointInfo;
-            
+
             lock (Endpoints)
             {
                 // Check if endpoint exists

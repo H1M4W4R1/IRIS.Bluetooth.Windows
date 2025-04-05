@@ -482,6 +482,10 @@ namespace IRIS.Bluetooth.Communication
             // Check if services have data
             if (!services.HasData) return DataPromise.FromFailure<GattDeviceService>();
 
+            // Check if services are empty
+            if(services.Data.Count == 0)
+                return DataPromise.FromFailure<GattDeviceService>();
+            
             // Get first service
             GattDeviceService? service = services.Data?[0];
 

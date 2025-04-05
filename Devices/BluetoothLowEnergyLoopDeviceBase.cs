@@ -43,16 +43,10 @@ namespace IRIS.Bluetooth.Devices
                 catch (Exception anyException)
                 {
                     // Check if we should throw exceptions
-                    if (ThrowLoopExceptions)
-                        throw;
+                    if (ThrowLoopExceptions) throw;
 
                     // Log the exception if we are not throwing it
                     Debug.WriteLine(anyException, "BluetoothLowEnergyLoopDeviceBase: Exception in device loop");
-                }
-                finally
-                {
-                    // Wait for a short period before the next iteration
-                    await Task.Delay(25, cancellationToken);
                 }
             }
         }
