@@ -91,7 +91,7 @@ namespace IRIS.Bluetooth.Devices
             // Try to connect to device
             // We don't need to subscribe to device connected event as
             // interface will wait for device to be connected
-            if (!base.Connect(cancellationToken)) return false;
+            if (!base.ConnectAsync(cancellationToken)) return false;
 
             // Handle disconnection
             HardwareAccess.BluetoothDeviceDisconnected += HandleCommunicationFailed;
@@ -135,7 +135,7 @@ namespace IRIS.Bluetooth.Devices
             // Guarantee that all endpoints and notification handlers are cleared
             Endpoints.Clear();
 
-            if (!base.Disconnect(cancellationToken)) return false;
+            if (!base.DisconnectAsync(cancellationToken)) return false;
 
             // Disconnection successful
             DeviceState = BluetoothDeviceState.Disconnected;
