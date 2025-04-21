@@ -24,7 +24,7 @@ namespace IRIS.Bluetooth.Data
         /// </summary>
         public List<BluetoothLowEnergyEndpoint.NotificationReceivedHandler> NotificationHandlers { get; } = new();
         
-        public void AddNotificationHandler(BluetoothLowEnergyEndpoint.NotificationReceivedHandler handler)
+        public async ValueTask AddNotificationHandlerAsync(BluetoothLowEnergyEndpoint.NotificationReceivedHandler handler)
         {
             if(Endpoint == null) return;
             if(!Endpoint.IsNotifyAvailable) return;
@@ -38,11 +38,11 @@ namespace IRIS.Bluetooth.Data
             if(NotificationHandlers.Count > 0)
             {
                 // Set the endpoint to notify all handlers
-                Endpoint.SetNotify(true);
+                await Endpoint.SetNotifyAsync(true);
             }
         }
         
-        public void RemoveNotificationHandler(BluetoothLowEnergyEndpoint.NotificationReceivedHandler handler)
+        public async ValueTask RemoveNotificationHandlerAsync(BluetoothLowEnergyEndpoint.NotificationReceivedHandler handler)
         {
             if(Endpoint == null) return;
             if(!Endpoint.IsNotifyAvailable) return;
@@ -56,7 +56,7 @@ namespace IRIS.Bluetooth.Data
             if(NotificationHandlers.Count <= 0)
             {
                 // Set the endpoint to stop notifying
-                Endpoint.SetNotify(false);
+                await Endpoint.SetNotifyAsync(false);
             }
         }
     }

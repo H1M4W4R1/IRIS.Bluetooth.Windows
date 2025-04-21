@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using Windows.Devices.Bluetooth;
+﻿using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
 
 namespace IRIS.Bluetooth.Addressing

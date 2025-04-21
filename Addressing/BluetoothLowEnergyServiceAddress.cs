@@ -1,7 +1,6 @@
 ﻿using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Advertisement;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
-using Windows.Foundation;
 
 namespace IRIS.Bluetooth.Addressing
 {

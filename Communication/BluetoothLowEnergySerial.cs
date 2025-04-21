@@ -1,5 +1,4 @@
 ﻿using Windows.Devices.Bluetooth.GenericAttributeProfile;
-using IRIS.Data;
 
 namespace IRIS.Bluetooth.Communication
 {
@@ -10,43 +9,65 @@ namespace IRIS.Bluetooth.Communication
     {
         private readonly BluetoothLowEnergyEndpoint? _txEndpoint = tx;
         private readonly BluetoothLowEnergyEndpoint? _rxEndpoint = rx;
-        
+
         /// <summary>
         /// Writes a string to the TX endpoint
         /// </summary>
         /// <param name="message">>String to write to the TX endpoint</param>
-        public void Write(string message) => _txEndpoint?.Write(message);
+        public async ValueTask<bool> WriteAsync(string message)
+        {
+            // TODO: ATOMIC
+            
+            // Check if the TX endpoint is null
+            if(_txEndpoint is null) return false;
+            
+            // Write data to the TX endpoint
+            return await _txEndpoint.WriteAsync(message);
+        }
 
         /// <summary>
         /// Writes raw data to the TX endpoint
         /// </summary>
         /// <param name="data">>Raw data to write to the TX endpoint</param>
-        public void WriteRawData(byte[] data) => _txEndpoint?.Write(data);
+        public async ValueTask<bool> WriteRawDataAsync(byte[] data)
+        {
+            // TODO: ATOMIC
+            
+            // Check if the TX endpoint is null
+            if(_txEndpoint is null) return false;
+
+            // Write data to the TX endpoint
+            return await _txEndpoint.WriteAsync(data);
+        }
 
         /// <summary>
         /// Reads raw data from the RX endpoint
         /// </summary>
         /// <returns>>Raw data read from the RX endpoint or null if no data is available</returns>
-        public byte[]? ReadRawData()
+        public async ValueTask<byte[]?> ReadRawDataAsync()
         {
+            // TODO: ATOMIC
+            
+            // Check if the RX endpoint is null
             if (_rxEndpoint is null) return null;
 
             // Read data from the RX endpoint
-            DataPromise<byte[]> dataPromise = _rxEndpoint.ReadData<byte[]>();
-            return !dataPromise.HasData ? null : dataPromise.Data;
+            return await _rxEndpoint.ReadDataAsync<byte[]>();
         }
 
         /// <summary>
         /// Reads a string from the RX endpoint
         /// </summary>
         /// <returns>String read from the RX endpoint or null if no data is available</returns>
-        public string? Read()
+        public async ValueTask<string?> ReadAsync()
         {
+            // TODO: ATOMIC
+            
+            // Check if the RX endpoint is null
             if (_rxEndpoint is null) return null;
 
             // Read data from the RX endpoint
-            DataPromise<string> dataPromise = _rxEndpoint.ReadData<string>();
-            return !dataPromise.HasData ? null : dataPromise.Data;
+            return await _rxEndpoint.ReadDataAsync<string>();
         }
 
         /// <summary>
@@ -55,10 +76,11 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="message">String to write to the TX endpoint</param>
         /// <param name="cancellationToken">Cancellation token to cancel the operation</param>
         /// <returns>>String read from the RX endpoint or null if no data is available</returns>
-        public string? WriteRead(string message, CancellationToken cancellationToken = default)
+        public async ValueTask<string?> WriteReadAsync(string message, CancellationToken cancellationToken = default)
         {
             if (_txEndpoint is null || _rxEndpoint is null) return null;
 
+            // TODO: Response awaiter?
             BluetoothLowEnergyEndpoint rxEndpointReference = _rxEndpoint;
             string? messageResponse = null;
             bool isResponseReceived = false;
@@ -67,7 +89,7 @@ namespace IRIS.Bluetooth.Communication
             rxEndpointReference.NotificationReceived += WaitForResponse;
             
             // Write data to the TX endpoint
-            _txEndpoint.Write(message);
+            await _txEndpoint.WriteAsync(message);
             
             // Wait for the response
             while (!isResponseReceived)
@@ -88,19 +110,19 @@ namespace IRIS.Bluetooth.Communication
             return messageResponse;
 
             // Internal method to handle the RX endpoint notification received event
-            void WaitForResponse(GattCharacteristic sender, GattValueChangedEventArgs args)
+            async void WaitForResponse(GattCharacteristic sender, GattValueChangedEventArgs args)
             {
                 // Read data from the RX endpoint
-                DataPromise<string> response = rxEndpointReference.ReadData<string>();
+                string? response = await rxEndpointReference.ReadDataAsync<string>();
                 
                 // Detach the RX handler from the RX endpoint
                 rxEndpointReference.NotificationReceived -= WaitForResponse;
 
                 // Check if data is available
-                if (!response.HasData) return;
+                if (response is null) return;
             
                 // Return the response
-                messageResponse = response.Data;
+                messageResponse = response;
                 isResponseReceived = true;
             }
         }
