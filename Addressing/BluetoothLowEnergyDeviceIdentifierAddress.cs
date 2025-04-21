@@ -10,7 +10,7 @@ namespace IRIS.Bluetooth.Addressing
         private readonly BluetoothSignalStrengthFilter _cachedSignalStrengthFilter;
 
         /// <summary>
-        /// Address of the device
+        ///     Address of the device
         /// </summary>
         public ulong DeviceAddress { get; private init; }
 
@@ -18,9 +18,10 @@ namespace IRIS.Bluetooth.Addressing
         public BluetoothSignalStrengthFilter GetSignalStrengthFilter() => _cachedSignalStrengthFilter;
 
         /// <summary>
-        /// Check if the device is valid for this address
+        ///     Check if the device is valid for this address
         /// </summary>
-        public bool IsDeviceValid(BluetoothLEDevice device) => device.BluetoothAddress == DeviceAddress;
+        public ValueTask<bool> IsDeviceValidAsync(BluetoothLEDevice device)
+            => ValueTask.FromResult(device.BluetoothAddress == DeviceAddress);
 
         public BluetoothLowEnergyDeviceIdentifierAddress(ulong deviceAddress)
         {

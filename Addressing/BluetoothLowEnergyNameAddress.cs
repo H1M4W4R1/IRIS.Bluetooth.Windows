@@ -10,7 +10,7 @@ namespace IRIS.Bluetooth.Addressing
         private readonly BluetoothSignalStrengthFilter _cachedSignalStrengthFilter;
 
         /// <summary>
-        /// Regular expression to match device name
+        ///     Regular expression to match device name
         /// </summary>
         public string NameRegex { get; init; }
 
@@ -18,13 +18,13 @@ namespace IRIS.Bluetooth.Addressing
         public BluetoothSignalStrengthFilter GetSignalStrengthFilter() => _cachedSignalStrengthFilter;
 
         /// <summary>
-        /// Check if the device is valid for this address
+        ///     Check if the device is valid for this address
         /// </summary>
-        public bool IsDeviceValid(BluetoothLEDevice device)
+        public ValueTask<bool> IsDeviceValidAsync(BluetoothLEDevice device)
         {
-            return device.Name is { } name
+            return ValueTask.FromResult(device.Name is { } name
                    && NameRegex is { } regex
-                   && Regex.IsMatch(name, regex);
+                   && Regex.IsMatch(name, regex));
         }
 
         public BluetoothLowEnergyNameAddress(string deviceNameRegex)

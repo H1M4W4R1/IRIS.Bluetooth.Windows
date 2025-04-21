@@ -190,7 +190,7 @@ namespace IRIS.Bluetooth.Communication
             if (device == null) return;
 
             // Check if device matches expected address
-            if (!DeviceAddress.IsDeviceValid(device)) return;
+            if (!DeviceAddress.IsDeviceValidAsync(device)) return;
 
             lock (ConnectedDevices)
             {

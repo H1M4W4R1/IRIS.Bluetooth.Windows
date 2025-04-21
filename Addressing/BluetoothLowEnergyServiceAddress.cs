@@ -37,24 +37,16 @@ namespace IRIS.Bluetooth.Addressing
         /// <summary>
         /// Check if the device is valid for this service
         /// </summary>
-        public bool IsDeviceValid(BluetoothLEDevice device)
+        public async ValueTask<bool> IsDeviceValidAsync(BluetoothLEDevice device)
         {
             // Cache service UUID because C#...
             Guid uuid = ServiceUUID;
 
             // Get service
-            IAsyncOperation<GattDeviceServicesResult> serviceResult = device.GetGattServicesAsync();
-
-            // Wait for result
-            while (serviceResult.Status != AsyncStatus.Completed)
-            {
-                // Check if the task was cancelled
-                if (serviceResult.Status == AsyncStatus.Canceled || serviceResult.Status == AsyncStatus.Error)
-                    return false;
-            }
+            GattDeviceServicesResult? services = await device.GetGattServicesAsync();
             
-            // Get result status
-            if (serviceResult.GetResults() is not { } services) return false;
+            // Check if services exist
+            if(services == null) return false;
 
             // Ensure communication status is OK
             if (services.Status != GattCommunicationStatus.Success) return false;
