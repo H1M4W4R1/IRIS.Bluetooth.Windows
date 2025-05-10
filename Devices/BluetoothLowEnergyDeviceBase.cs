@@ -3,6 +3,7 @@ using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using IRIS.Bluetooth.Communication;
 using IRIS.Bluetooth.Data;
+using IRIS.Data;
 using IRIS.Devices;
 
 namespace IRIS.Bluetooth.Devices
@@ -79,7 +80,7 @@ namespace IRIS.Bluetooth.Devices
             }
         }
 
-        public sealed override async ValueTask<bool> ConnectAsync(CancellationToken cancellationToken = default)
+        public sealed override bool Connect(CancellationToken cancellationToken = default)
         {
             // Check if device is already connected
             if (IsConnected) return true;
@@ -90,7 +91,7 @@ namespace IRIS.Bluetooth.Devices
             // Try to connect to device
             // We don't need to subscribe to device connected event as
             // interface will wait for device to be connected
-            if (!await base.ConnectAsync(cancellationToken)) return false;
+            if (!base.Connect(cancellationToken)) return false;
 
             // Handle disconnection
             HardwareAccess.BluetoothDeviceDisconnected += HandleCommunicationFailed;
@@ -113,14 +114,14 @@ namespace IRIS.Bluetooth.Devices
             }
 
             // Disconnect if required endpoints are not attached
-            await DisconnectAsync(cancellationToken);
+            Disconnect(cancellationToken);
             return false;
         }
 
         /// <summary>
         /// Disconnect from the device
         /// </summary>
-        public sealed override async ValueTask<bool> DisconnectAsync(CancellationToken cancellationToken = default)
+        public sealed override bool Disconnect(CancellationToken cancellationToken = default)
         {
             // Begin disconnection
             DeviceState = BluetoothDeviceState.Disconnecting;
@@ -134,16 +135,16 @@ namespace IRIS.Bluetooth.Devices
             // Guarantee that all endpoints and notification handlers are cleared
             Endpoints.Clear();
 
-            if (!await base.DisconnectAsync(cancellationToken)) return false;
+            if (!base.Disconnect(cancellationToken)) return false;
 
             // Disconnection successful
             DeviceState = BluetoothDeviceState.Disconnected;
             return true;
         }
 
-        private async void HandleCommunicationFailed(ulong address, BluetoothLEDevice device)
+        private void HandleCommunicationFailed(ulong address, BluetoothLEDevice device)
         {
-            await DisconnectAsync();
+            Disconnect();
         }
 
         /// <summary>

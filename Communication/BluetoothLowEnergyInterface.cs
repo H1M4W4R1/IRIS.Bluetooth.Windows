@@ -5,6 +5,7 @@ using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Foundation;
 using IRIS.Bluetooth.Addressing;
 using IRIS.Communication;
+using IRIS.Data;
 using static IRIS.Bluetooth.Communication.Delegates;
 using static IRIS.Communication.Delegates;
 
@@ -58,10 +59,10 @@ namespace IRIS.Bluetooth.Communication
         public event BluetoothDeviceConnectedHandler BluetoothDeviceConnected = delegate { };
         public event BluetoothDeviceDisconnectedHandler BluetoothDeviceDisconnected = delegate { };
 
-        public ValueTask<bool> Connect(CancellationToken cancellationToken = default)
+        public bool Connect(CancellationToken cancellationToken = default)
         {
             // Check if device is already connected
-            if (IsConnected) return new ValueTask<bool>(true);
+            if (IsConnected) return true;
 
             // Start scanning for devices
             try
@@ -72,25 +73,25 @@ namespace IRIS.Bluetooth.Communication
                 // Wait for connection
                 while (!IsConnected)
                 {
-                    if (cancellationToken.IsCancellationRequested) return new ValueTask<bool>(false);
+                    if (cancellationToken.IsCancellationRequested) return false;
                 }
 
                 // Stop scanning for devices
                 _watcher.Stop();
                 _watcher.Received -= OnAdvertisementReceived;
-                return new ValueTask<bool>(true);
+                return true;
             }
             catch (COMException) // When adapter is not available, hope no other exceptions are allocated here
             {
                 _watcher.Received -= OnAdvertisementReceived;
-                return new ValueTask<bool>(false);
+                return false;
             }
         }
 
-        public ValueTask<bool> Disconnect()
+        public bool Disconnect()
         {
             // Check if device is connected, if not - return
-            if (!IsConnected) return new ValueTask<bool>(true);
+            if (!IsConnected) return true;
 
             lock (ConnectedDevices)
             {
@@ -99,7 +100,7 @@ namespace IRIS.Bluetooth.Communication
                 DeviceBluetoothAddress = 0;
 
                 // Disconnect from device if connected
-                if (ConnectedDevice == null) return new ValueTask<bool>(true);
+                if (ConnectedDevice == null) return true;
 
                 // Send events
                 BluetoothDeviceDisconnected(DeviceBluetoothAddress, ConnectedDevice);
@@ -108,7 +109,7 @@ namespace IRIS.Bluetooth.Communication
                 ConnectedDevice = null;
             }
 
-            return new ValueTask<bool>(true);
+            return true;
         }
 
         /// <summary>

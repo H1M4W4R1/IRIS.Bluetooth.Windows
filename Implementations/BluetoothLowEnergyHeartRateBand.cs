@@ -2,6 +2,7 @@
 using IRIS.Bluetooth.Communication;
 using IRIS.Bluetooth.Devices;
 using IRIS.Bluetooth.Implementations.Data;
+using IRIS.Data;
 
 namespace IRIS.Bluetooth.Implementations
 {
