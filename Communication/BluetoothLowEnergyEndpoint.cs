@@ -4,7 +4,6 @@ using Windows.Foundation;
 using Windows.Storage.Streams;
 using IRIS.Bluetooth.Addressing;
 using IRIS.Bluetooth.Utility;
-using IRIS.Data;
 
 namespace IRIS.Bluetooth.Communication
 {
