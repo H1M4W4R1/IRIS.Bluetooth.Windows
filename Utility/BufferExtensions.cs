@@ -46,7 +46,7 @@ namespace IRIS.Bluetooth.Utility
         /// <typeparam name="TBufferData">Type of data</typeparam>
         /// <returns>Read data or null if type is not supported</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static DataPromise<TBufferData> Read<TBufferData>(this IBuffer buffer)
+        public static TBufferData? Read<TBufferData>(this IBuffer buffer)
         {
             // Create new reader
             using DataReader reader = DataReader.FromBuffer(buffer);
@@ -95,8 +95,7 @@ namespace IRIS.Bluetooth.Utility
             else if (typeof(TBufferData) == typeof(DateTime)) result = reader.ReadDateTime();
 
             // Check if result is valid type, if so return it, if not return null
-            if (result is TBufferData properResult) return DataPromise.FromSuccess(properResult);
-            return DataPromise.FromFailure<TBufferData>();
+            return result is TBufferData properResult ? properResult : default;
         }
     }
 }

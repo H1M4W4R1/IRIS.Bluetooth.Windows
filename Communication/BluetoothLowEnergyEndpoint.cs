@@ -59,7 +59,7 @@ namespace IRIS.Bluetooth.Communication
         /// <summary>
         /// Read value from the characteristic
         /// </summary>
-        private DataPromise<IBuffer> ReadRawValue()
+        private IBuffer? ReadRawValue()
         {
             IAsyncOperation<GattReadResult> operation = Characteristic.ReadValueAsync();
 
@@ -67,19 +67,19 @@ namespace IRIS.Bluetooth.Communication
             while (operation.Status != AsyncStatus.Completed)
             {
                 if (operation.Status is AsyncStatus.Error or AsyncStatus.Canceled)
-                    return DataPromise.FromFailure<IBuffer>();
+                    return null;
             }
             
             // Get result
             GattReadResult? result = operation.GetResults();
             
             // Check if result is null
-            if(result == null) return DataPromise.FromFailure<IBuffer>();
+            if(result == null) return null;
 
             // Check if status is OK
             return result.Status != GattCommunicationStatus.Success
-                ? DataPromise.FromFailure<IBuffer>()
-                : DataPromise.FromSuccess(result.Value);
+                ? null
+                : result.Value;
         }
 
         /// <summary>
@@ -120,17 +120,14 @@ namespace IRIS.Bluetooth.Communication
         /// </summary>
         /// <returns>Value of the characteristic or null if type is not supported or read failed</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public DataPromise<TObjectType> ReadData<TObjectType>()
+        public TObjectType? ReadData<TObjectType>()
         {
             // Read raw value
-            DataPromise<IBuffer> buffer = ReadRawValue();
-            if (!buffer.HasData) return DataPromise.FromFailure<TObjectType>();
+            IBuffer? buffer = ReadRawValue();
+            if (buffer == null) return default;
 
             // Convert buffer to data
-            DataPromise<TObjectType> data = buffer.Data.Read<TObjectType>();
-            
-            // Return data
-            return data;
+            return buffer.Read<TObjectType>();
         }
 
         /// <summary>

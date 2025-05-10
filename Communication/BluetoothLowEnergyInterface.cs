@@ -211,15 +211,13 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">Service UUID</param>
         /// <param name="characteristicUUID">Characteristic UUID</param>
         /// <returns>Endpoint or null if not found</returns>
-        public DataPromise<BluetoothLowEnergyEndpoint> FindEndpoint(Guid serviceUUID, Guid characteristicUUID)
+        public BluetoothLowEnergyEndpoint? FindEndpoint(Guid serviceUUID, Guid characteristicUUID)
         {
             // Get service
-            DataPromise<GattDeviceService> service = GetService(serviceUUID);
+            GattDeviceService? service = GetService(serviceUUID);
             
             // Check if service is null and return
-            return !service.HasData
-                ? DataPromise<BluetoothLowEnergyEndpoint>.FromFailure()
-                : FindEndpoint(service.Data, characteristicUUID);
+            return service == null ? null : FindEndpoint(service, characteristicUUID);
         }
 
         /// <summary>
@@ -228,20 +226,18 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicUUID">UUID of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public DataPromise<BluetoothLowEnergyEndpoint> FindEndpoint(
+        public BluetoothLowEnergyEndpoint? FindEndpoint(
             GattDeviceService? service,
             Guid characteristicUUID)
         {
             // Get service
-            if (service == null) return DataPromise<BluetoothLowEnergyEndpoint>.FromFailure();
+            if (service == null) return null;
 
             // Get characteristic
-            DataPromise<GattCharacteristic> characteristic = GetCharacteristic(service, characteristicUUID);
+            GattCharacteristic? characteristic = GetCharacteristic(service, characteristicUUID);
             
             // Check if characteristic is null and return
-            return !characteristic.HasData
-                ? DataPromise<BluetoothLowEnergyEndpoint>.FromFailure()
-                : DataPromise.FromSuccess(new BluetoothLowEnergyEndpoint(this, service, characteristic.Data));
+            return characteristic == null ? null : new BluetoothLowEnergyEndpoint(this, service, characteristic);
         }
 
         /// <summary>
@@ -250,15 +246,13 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">UUID of the service</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public DataPromise<BluetoothLowEnergyEndpoint> FindEndpoint(Guid serviceUUID, int characteristicIndex)
+        public BluetoothLowEnergyEndpoint? FindEndpoint(Guid serviceUUID, int characteristicIndex)
         {
             // Get service
-            DataPromise<GattDeviceService> service = GetService(serviceUUID);
+            GattDeviceService? service = GetService(serviceUUID);
 
             // Check if service is null and return
-            return !service.HasData
-                ? DataPromise<BluetoothLowEnergyEndpoint>.FromFailure()
-                : FindEndpoint(service.Data, characteristicIndex);
+            return service == null ? null : FindEndpoint(service, characteristicIndex);
         }
 
         /// <summary>
@@ -267,20 +261,18 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Endpoint or null if not found</returns>
-        public DataPromise<BluetoothLowEnergyEndpoint> FindEndpoint(
+        public BluetoothLowEnergyEndpoint? FindEndpoint(
             GattDeviceService? service,
             int characteristicIndex)
         {
             // Get service
-            if (service == null) return DataPromise<BluetoothLowEnergyEndpoint>.FromFailure();
+            if (service == null) return null;
 
             // Get characteristic
-            DataPromise<GattCharacteristic> characteristic = GetCharacteristic(service, characteristicIndex);
+            GattCharacteristic? characteristic = GetCharacteristic(service, characteristicIndex);
 
             // Check if characteristic is null and return
-            return !characteristic.HasData
-                ? DataPromise<BluetoothLowEnergyEndpoint>.FromFailure()
-                : DataPromise.FromSuccess(new BluetoothLowEnergyEndpoint(this, service, characteristic.Data));
+            return characteristic == null ? null : new BluetoothLowEnergyEndpoint(this, service, characteristic);
         }
 
         /// <summary>
@@ -289,38 +281,34 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">UUID of the service</param>
         /// <param name="characteristicUUID">UUID of the characteristic</param>
         /// <returns>Characteristic or null if not found</returns>
-        public DataPromise<GattCharacteristic> GetCharacteristic(Guid serviceUUID, Guid characteristicUUID)
+        public GattCharacteristic? GetCharacteristic(Guid serviceUUID, Guid characteristicUUID)
         {
             // Check if device is connected
-            if (!IsConnected) return DataPromise<GattCharacteristic>.FromFailure();
+            if (!IsConnected) return null;
 
             // Get service
-            DataPromise<GattDeviceService> service = GetService(serviceUUID);
+            GattDeviceService? service = GetService(serviceUUID);
 
             // Check if service is null and return
-            return !service.HasData
-                ? DataPromise<GattCharacteristic>.FromFailure()
-                : GetCharacteristic(service.Data, characteristicUUID);
+            return service == null ? null : GetCharacteristic(service, characteristicUUID);
         }
 
-        public DataPromise<GattCharacteristic> GetCharacteristic(
+        public GattCharacteristic? GetCharacteristic(
             GattDeviceService service,
             Guid characteristicUUID)
         {
             // Check if device is connected
-            if (!IsConnected) return DataPromise<GattCharacteristic>.FromFailure();
+            if (!IsConnected) return null;
 
             // Get characteristic from service
-            DataPromise<IReadOnlyList<GattCharacteristic>> characteristics =
+            IReadOnlyList<GattCharacteristic>? characteristics =
                 GetAllCharacteristicsFor(service, characteristicUUID);
 
             // Check if characteristics are null
-            if (!characteristics.HasData) return DataPromise<GattCharacteristic>.FromFailure();
+            if (characteristics == null) return null;
 
             // Return first characteristic found
-            return characteristics.Data.Count > 0
-                ? DataPromise.FromSuccess(characteristics.Data[0])
-                : DataPromise<GattCharacteristic>.FromFailure();
+            return characteristics.Count > 0 ? characteristics[0] : null;
         }
 
         /// <summary>
@@ -329,15 +317,13 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">UUID of the service</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Characteristic or null if not found</returns>
-        public DataPromise<GattCharacteristic> GetCharacteristic(Guid serviceUUID, int characteristicIndex)
+        public GattCharacteristic? GetCharacteristic(Guid serviceUUID, int characteristicIndex)
         {
             // Get service
-            DataPromise<GattDeviceService> service = GetService(serviceUUID);
+            GattDeviceService? service = GetService(serviceUUID);
 
             // Check if service is null and return
-            return !service.HasData
-                ? DataPromise<GattCharacteristic>.FromFailure()
-                : GetCharacteristic(service.Data, characteristicIndex);
+            return service == null ? null : GetCharacteristic(service, characteristicIndex);
         }
 
         /// <summary>
@@ -346,31 +332,28 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="service">Service to get characteristic from</param>
         /// <param name="characteristicIndex">Index of the characteristic</param>
         /// <returns>Characteristic or null if not found</returns>
-        public DataPromise<GattCharacteristic> GetCharacteristic(
+        public GattCharacteristic? GetCharacteristic(
             GattDeviceService service,
             int characteristicIndex)
         {
             // Check if device is connected
-            if (!IsConnected) return DataPromise<GattCharacteristic>.FromFailure();
+            if (!IsConnected) return null;
 
             // Check if index is negative
-            if (characteristicIndex < 0) return DataPromise<GattCharacteristic>.FromFailure();
+            if (characteristicIndex < 0) return null;
 
             // Get all characteristics
-            DataPromise<IReadOnlyList<GattCharacteristic>> characteristics = GetAllCharacteristics(service);
+            IReadOnlyList<GattCharacteristic>? characteristics = GetAllCharacteristics(service);
 
             // Check if characteristics are null
-            if (!characteristics.HasData) return DataPromise<GattCharacteristic>.FromFailure();
+            if (characteristics == null) return null;
 
             // Check if index is out of bounds
-            if (characteristicIndex >= characteristics.Data.Count)
-                return DataPromise<GattCharacteristic>.FromFailure();
+            if (characteristicIndex >= characteristics.Count)
+                return null;
 
             // Get characteristic
-            GattCharacteristic characteristic = characteristics.Data[characteristicIndex];
-
-            // Return characteristic
-            return DataPromise.FromSuccess(characteristic);
+            return characteristics[characteristicIndex];
         }
 
         /// <summary>
@@ -379,186 +362,142 @@ namespace IRIS.Bluetooth.Communication
         /// <param name="serviceUUID">Service UUID</param>
         /// <param name="characteristicUUID">Characteristic UUID</param>
         /// <returns>List of characteristics or null if not found</returns>
-        public DataPromise<IReadOnlyList<GattCharacteristic>> GetAllCharacteristicsFor(
+        public IReadOnlyList<GattCharacteristic>? GetAllCharacteristicsFor(
             Guid serviceUUID,
             Guid characteristicUUID)
         {
             // Get service
-            DataPromise<GattDeviceService> service = GetService(serviceUUID);
+            GattDeviceService? service = GetService(serviceUUID);
 
             // Check if service is null and return
-            return !service.HasData
-                ? DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure()
-                : GetAllCharacteristicsFor(service.Data, characteristicUUID);
+            return service == null ? null : GetAllCharacteristicsFor(service, characteristicUUID);
         }
 
         /// <summary>
-        /// Get all characteristics from service for specified UUID
+        /// Get all characteristics from specified service that match specified characteristic UUID
         /// </summary>
-        public DataPromise<IReadOnlyList<GattCharacteristic>> GetAllCharacteristicsFor(
+        /// <param name="service">Service to get characteristics from</param>
+        /// <param name="characteristicUUID">Characteristic UUID</param>
+        /// <returns>List of characteristics or null if not found</returns>
+        public IReadOnlyList<GattCharacteristic>? GetAllCharacteristicsFor(
             GattDeviceService service,
             Guid characteristicUUID)
         {
             // Check if device is connected
-            if (!IsConnected) return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
+            if (!IsConnected) return null;
 
-            // Get specific characteristic
-            IAsyncOperation<GattCharacteristicsResult> characteristicsRequest =
-                service.GetCharacteristicsForUuidAsync(characteristicUUID);
+            // Get all characteristics
+            IReadOnlyList<GattCharacteristic>? characteristics = GetAllCharacteristics(service);
 
-            // Wait for async operation to complete
-            while (characteristicsRequest.Status != AsyncStatus.Completed)
+            // Check if characteristics are null
+            if (characteristics == null) return null;
+
+            // Filter characteristics by UUID
+            List<GattCharacteristic> filteredCharacteristics = new();
+            foreach (GattCharacteristic characteristic in characteristics)
             {
-                // Check if operation was cancelled or errored
-                if (characteristicsRequest.Status is not (AsyncStatus.Canceled or AsyncStatus.Error)) continue;
-                return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
+                if (characteristic.Uuid == characteristicUUID)
+                    filteredCharacteristics.Add(characteristic);
             }
 
-            // Get data from async operation
-            GattCharacteristicsResult characteristics = characteristicsRequest.GetResults();
-
-            // Check if characteristic is unreachable
-            switch (characteristics.Status)
-            {
-                case GattCommunicationStatus.Unreachable:
-                    DeviceConnectionLost?.Invoke(DeviceAddress);
-                    Disconnect();
-                    return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
-                case GattCommunicationStatus.Success: break;
-                default: return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
-            }
-
-            // Return characteristic
-            return DataPromise.FromSuccess(characteristics.Characteristics);
+            // Return filtered characteristics
+            return filteredCharacteristics.Count > 0 ? filteredCharacteristics : null;
         }
 
         /// <summary>
-        /// Get all characteristics from service for specified UUID
+        /// Get all characteristics from specified service (by UUID)
         /// </summary>
-        /// <param name="serviceUUID">UUID of the service</param>
+        /// <param name="serviceUUID">Service UUID</param>
         /// <returns>List of characteristics or null if not found</returns>
-        public DataPromise<IReadOnlyList<GattCharacteristic>> GetAllCharacteristics(Guid serviceUUID)
+        public IReadOnlyList<GattCharacteristic>? GetAllCharacteristics(Guid serviceUUID)
         {
-            DataPromise<GattDeviceService> service = GetService(serviceUUID);
+            // Get service
+            GattDeviceService? service = GetService(serviceUUID);
 
-            // Check if service is null
-            return !service.HasData
-                ? DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure()
-                : GetAllCharacteristics(service.Data);
+            // Check if service is null and return
+            return service == null ? null : GetAllCharacteristics(service);
         }
 
         /// <summary>
-        /// Get all characteristics from service
+        /// Get all characteristics from specified service
         /// </summary>
         /// <param name="service">Service to get characteristics from</param>
         /// <returns>List of characteristics or null if not found</returns>
-        public DataPromise<IReadOnlyList<GattCharacteristic>> GetAllCharacteristics(GattDeviceService service)
+        public IReadOnlyList<GattCharacteristic>? GetAllCharacteristics(GattDeviceService service)
         {
             // Check if device is connected
-            if (!IsConnected) return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
+            if (!IsConnected) return null;
 
-            // Get characteristics
-            IAsyncOperation<GattCharacteristicsResult>? characteristicsRequest = service.GetCharacteristicsAsync();
+            // Get all characteristics
+            GattCharacteristicsResult characteristics = service.GetCharacteristicsAsync().GetResults();
 
-            // Wait for async operation to complete
-            while (characteristicsRequest.Status != AsyncStatus.Completed)
-            {
-                // Check if operation was cancelled or errored
-                if (characteristicsRequest.Status is not (AsyncStatus.Canceled or AsyncStatus.Error)) continue;
-                return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
-            }
+            // Check if characteristics are null
+            if (characteristics == null) return null;
 
-            // Get data from async operation
-            GattCharacteristicsResult characteristics = characteristicsRequest.GetResults();
-
-            // Check if result is unreachable
-            switch (characteristics.Status)
-            {
-                case GattCommunicationStatus.Unreachable:
-                    DeviceConnectionLost?.Invoke(DeviceAddress);
-                    Disconnect();
-                    return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
-                case GattCommunicationStatus.Success: break;
-                default: return DataPromise<IReadOnlyList<GattCharacteristic>>.FromFailure();
-            }
+            // Check if characteristics status is success
+            if (characteristics.Status != GattCommunicationStatus.Success)
+                return null;
 
             // Return characteristics
-            return DataPromise.FromSuccess(characteristics.Characteristics);
+            return characteristics.Characteristics;
         }
 
         /// <summary>
-        /// Get service for specified UUID
+        /// Get service from device that has specified UUID
         /// </summary>
         /// <param name="serviceUUID">UUID of the service</param>
         /// <returns>Service or null if not found</returns>
-        public DataPromise<GattDeviceService> GetService(Guid serviceUUID)
+        public GattDeviceService? GetService(Guid serviceUUID)
         {
             // Check if device is connected
-            if (!IsConnected) return DataPromise.FromFailure<GattDeviceService>();
+            if (!IsConnected) return null;
 
-            // Check if device exists
-            if (ConnectedDevice == null) return DataPromise.FromFailure<GattDeviceService>();
+            // Check if connected device is null
+            if (ConnectedDevice == null) return null;
 
             // Get services
-            DataPromise<IReadOnlyList<GattDeviceService>> services = GetServices(serviceUUID);
+            IReadOnlyList<GattDeviceService>? services = GetServices(serviceUUID);
 
-            // Check if services have data
-            if (!services.HasData) return DataPromise.FromFailure<GattDeviceService>();
+            // Check if services are null
+            if (services == null) return null;
 
-            // Check if services are empty
-            if(services.Data.Count == 0)
-                return DataPromise.FromFailure<GattDeviceService>();
-            
-            // Get first service
-            GattDeviceService? service = services.Data?[0];
-
-            // Check if service is null and return
-            return service == null
-                ? DataPromise.FromFailure<GattDeviceService>()
-                : DataPromise.FromSuccess(service);
+            // Return first service found
+            return services.Count > 0 ? services[0] : null;
         }
 
         /// <summary>
-        /// Get services from connected device
+        /// Get all services from device that match specified UUID
         /// </summary>
         /// <param name="serviceUUID">UUID of the service</param>
-        /// <returns>List of services</returns>
-        public DataPromise<IReadOnlyList<GattDeviceService>> GetServices(Guid serviceUUID)
+        /// <returns>List of services or null if not found</returns>
+        public IReadOnlyList<GattDeviceService>? GetServices(Guid serviceUUID)
         {
             // Check if device is connected
-            if (!IsConnected) return DataPromise<IReadOnlyList<GattDeviceService>>.FromFailure();
+            if (!IsConnected) return null;
 
-            // Check if device exists
-            if (ConnectedDevice == null) return DataPromise<IReadOnlyList<GattDeviceService>>.FromFailure();
+            // Check if connected device is null
+            if (ConnectedDevice == null) return null;
 
-            // Get service using UUID
-            IAsyncOperation<GattDeviceServicesResult> servicesRequest =
-                ConnectedDevice.GetGattServicesForUuidAsync(serviceUUID);
+            // Get all services
+            GattDeviceServicesResult servicesResult = ConnectedDevice.GetGattServicesAsync().GetResults();
 
-            // Wait for async operation to complete
-            while (servicesRequest.Status != AsyncStatus.Completed)
+            // Check if services are null
+            if (servicesResult == null) return null;
+
+            // Check if services status is success
+            if (servicesResult.Status != GattCommunicationStatus.Success)
+                return null;
+
+            // Filter services by UUID
+            List<GattDeviceService> filteredServices = new();
+            foreach (GattDeviceService service in servicesResult.Services)
             {
-                // Check if operation was cancelled or errored
-                if (servicesRequest.Status is not (AsyncStatus.Canceled or AsyncStatus.Error)) continue;
-                return DataPromise<IReadOnlyList<GattDeviceService>>.FromFailure();
+                if (service.Uuid == serviceUUID)
+                    filteredServices.Add(service);
             }
 
-            // Get data from async operation
-            GattDeviceServicesResult servicesResult = servicesRequest.GetResults();
-
-            // Check if service is found
-            switch (servicesResult.Status)
-            {
-                case GattCommunicationStatus.Unreachable:
-                    DeviceConnectionLost?.Invoke(DeviceAddress);
-                    Disconnect();
-                    return DataPromise<IReadOnlyList<GattDeviceService>>.FromFailure();
-                case GattCommunicationStatus.Success: break;
-                default: return DataPromise<IReadOnlyList<GattDeviceService>>.FromFailure();
-            }
-
-            // Return first service found
-            return DataPromise.FromSuccess(servicesResult.Services);
+            // Return filtered services
+            return filteredServices.Count > 0 ? filteredServices : null;
         }
     }
 }

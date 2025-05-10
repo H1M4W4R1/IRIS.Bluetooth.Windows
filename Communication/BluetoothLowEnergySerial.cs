@@ -32,8 +32,7 @@ namespace IRIS.Bluetooth.Communication
             if (_rxEndpoint is null) return null;
 
             // Read data from the RX endpoint
-            DataPromise<byte[]> dataPromise = _rxEndpoint.ReadData<byte[]>();
-            return !dataPromise.HasData ? null : dataPromise.Data;
+            return _rxEndpoint.ReadData<byte[]>();
         }
 
         /// <summary>
@@ -45,8 +44,7 @@ namespace IRIS.Bluetooth.Communication
             if (_rxEndpoint is null) return null;
 
             // Read data from the RX endpoint
-            DataPromise<string> dataPromise = _rxEndpoint.ReadData<string>();
-            return !dataPromise.HasData ? null : dataPromise.Data;
+            return _rxEndpoint.ReadData<string>();
         }
 
         /// <summary>
@@ -91,16 +89,16 @@ namespace IRIS.Bluetooth.Communication
             void WaitForResponse(GattCharacteristic sender, GattValueChangedEventArgs args)
             {
                 // Read data from the RX endpoint
-                DataPromise<string> response = rxEndpointReference.ReadData<string>();
+                string? response = rxEndpointReference.ReadData<string>();
                 
                 // Detach the RX handler from the RX endpoint
                 rxEndpointReference.NotificationReceived -= WaitForResponse;
 
                 // Check if data is available
-                if (!response.HasData) return;
+                if (response == null) return;
             
                 // Return the response
-                messageResponse = response.Data;
+                messageResponse = response;
                 isResponseReceived = true;
             }
         }

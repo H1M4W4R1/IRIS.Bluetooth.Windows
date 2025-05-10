@@ -45,11 +45,11 @@ namespace IRIS.Bluetooth.Implementations
             if (HeartRateEndpoint == null) return;
 
             // Read the data from the endpoint and return if it is null
-            DataPromise<byte[]> data = HeartRateEndpoint.ReadData<byte[]>();
-            if(!data.HasData) return;
+            byte[]? data = HeartRateEndpoint.ReadData<byte[]>();
+            if(data == null) return;
 
             // Process the data
-            HeartRateReadout heartRate = ProcessData(data.Data);
+            HeartRateReadout heartRate = ProcessData(data);
 
             // Notify listeners
             OnHeartRateReceived(heartRate);
