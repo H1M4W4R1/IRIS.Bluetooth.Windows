@@ -7,7 +7,9 @@
   </h3>
 </div>
 
-This repository contains Bluetooth package for IRIS that is designed to work on Windows 10 OS. You need [IRIS framework](https://github.com/H1M4W4R1/IRIS) for this package to work correctly.
+This repository contains Bluetooth package for IRIS that is designed to work on Windows 10 OS.
+You need [IRIS framework](https://github.com/H1M4W4R1/IRIS) and
+[IRIS.Bluetooth.Common](https://github.com/H1M4W4R1/IRIS.Bluetooth.Common) for this package to work correctly.
 
 ## Requirements
 * .NET 8.0+ (Windows 10.0.19041.0+)
