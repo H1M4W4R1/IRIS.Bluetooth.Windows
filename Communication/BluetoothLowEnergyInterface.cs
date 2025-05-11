@@ -5,7 +5,6 @@ using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Foundation;
 using IRIS.Bluetooth.Addressing;
 using IRIS.Communication;
-using IRIS.Data;
 using static IRIS.Bluetooth.Communication.Delegates;
 using static IRIS.Communication.Delegates;
 

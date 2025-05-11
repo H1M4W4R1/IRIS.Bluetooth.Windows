@@ -3,7 +3,6 @@ using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using IRIS.Bluetooth.Communication;
 using IRIS.Bluetooth.Data;
-using IRIS.Data;
 using IRIS.Devices;
 
 namespace IRIS.Bluetooth.Devices

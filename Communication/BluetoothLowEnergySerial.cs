@@ -1,5 +1,4 @@
 ﻿using Windows.Devices.Bluetooth.GenericAttributeProfile;
-using IRIS.Data;
 
 namespace IRIS.Bluetooth.Communication
 {
