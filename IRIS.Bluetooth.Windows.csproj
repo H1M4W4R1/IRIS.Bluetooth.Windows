@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+        <LangVersion>latestmajor</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\IRIS.Bluetooth.Common\IRIS.Bluetooth.Common.csproj" />
+      <ProjectReference Include="..\IRIS\IRIS.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Structure\" />
+    </ItemGroup>
+
+</Project>
