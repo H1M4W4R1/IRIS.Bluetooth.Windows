@@ -348,7 +348,7 @@ namespace IRIS.Bluetooth.Windows.Communication
             Disconnect();
             try
             {
-                _watcher.Stop();
+                StopWatcher();
             }
             catch (Exception exception)
             {
