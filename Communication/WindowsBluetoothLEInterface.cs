@@ -112,10 +112,10 @@ namespace IRIS.Bluetooth.Windows.Communication
             DeviceDisconnected?.Invoke(DeviceBluetoothAddress);
         }
 
-        public event DeviceDiscovered? OnBluetoothDeviceDiscovered;
-        public event DeviceConnected? OnBluetoothDeviceConnected;
-        public event DeviceDisconnected? OnBluetoothDeviceDisconnected;
-        public event DeviceConnectionLost? OnBluetoothDeviceConnectionLost;
+        public event DeviceDiscoveredHandler? OnBluetoothDeviceDiscovered;
+        public event DeviceConnectedHandler? OnBluetoothDeviceConnected;
+        public event DeviceDisconnectedHandler? OnBluetoothDeviceDisconnected;
+        public event DeviceConnectionLostHandler? OnBluetoothDeviceConnectionLost;
 
         /// <summary>
         ///     Address of the device that this interface is searching for

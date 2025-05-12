@@ -31,7 +31,7 @@ namespace IRIS.Bluetooth.Windows.Structure
         public bool IsNotify
             => GattCharacteristic?.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Notify) == true;
 
-        public event CharacteristicValueChanged? ValueChanged;
+        public event CharacteristicValueChangedHandler? ValueChanged;
 
         /// <summary>
         ///     Check if the characteristic is available
