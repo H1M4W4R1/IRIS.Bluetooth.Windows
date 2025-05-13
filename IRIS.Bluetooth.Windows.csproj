@@ -5,6 +5,8 @@
         <LangVersion>latestmajor</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <Configurations>Debug;Release;Win-x64;Linux-x64</Configurations>
+        <Platforms>AnyCPU;Windows;Linux</Platforms>
     </PropertyGroup>
 
     <ItemGroup>
