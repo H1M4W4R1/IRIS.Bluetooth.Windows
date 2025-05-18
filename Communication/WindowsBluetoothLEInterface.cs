@@ -4,6 +4,7 @@ using Windows.Devices.Bluetooth.Advertisement;
 using IRIS.Bluetooth.Common;
 using IRIS.Bluetooth.Common.Abstract;
 using IRIS.Bluetooth.Common.Addressing;
+using IRIS.Bluetooth.Common.Utility;
 using IRIS.Bluetooth.Windows.Structure;
 using IRIS.Communication;
 
@@ -261,7 +262,7 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// </summary>
         /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
         /// <returns>The claimed Bluetooth LE device, or null if no device was available or the operation was cancelled.</returns>
-        public IBluetoothLEDevice? ClaimDevice(CancellationToken cancellationToken = default)
+        public async ValueTask<IBluetoothLEDevice?> ClaimDevice(CancellationToken cancellationToken = default)
         {
             IBluetoothLEDevice? device;
 
@@ -269,30 +270,15 @@ namespace IRIS.Bluetooth.Windows.Communication
             {
                 device = _discoveredDevices.FirstOrDefault(d => !_connectedDevices.Contains(d));
             }
-
-            if (device != null)
-            {
-                RegisterDevice(device);
-                return device;
-            }
-
-            OnBluetoothDeviceDiscovered += OnDeviceDiscovered;
-
-            while (device == null)
-            {
-                if (cancellationToken.IsCancellationRequested) break;
-            }
-
-            OnBluetoothDeviceDiscovered -= OnDeviceDiscovered;
+            
+            device ??= await new DiscoverNewBluetoothDevice(this, cancellationToken);
+            RegisterDevice(device);
             return device;
 
-            void OnDeviceDiscovered(IBluetoothLEInterface sender, IBluetoothLEDevice deviceInstance)
+            void RegisterDevice(IBluetoothLEDevice? deviceInstance)
             {
-                RegisterDevice(deviceInstance);
-            }
-
-            void RegisterDevice(IBluetoothLEDevice deviceInstance)
-            {
+                if (deviceInstance == null) return;
+                
                 lock (_devicesLock)
                 {
                     if (_connectedDevices.Contains(deviceInstance)) return;
@@ -310,17 +296,19 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// Releases a previously claimed Bluetooth LE device.
         /// </summary>
         /// <param name="device">The Bluetooth LE device to release.</param>
-        public void ReleaseDevice(IBluetoothLEDevice device)
+        public ValueTask ReleaseDevice(IBluetoothLEDevice device)
         {
             lock (_devicesLock)
             {
-                if (!_connectedDevices.Contains(device)) return;
+                if (!_connectedDevices.Contains(device)) return ValueTask.CompletedTask;
 
                 _connectedDevices.Remove(device);
             }
 
             OnBluetoothDeviceDisconnected?.Invoke(this, device);
             DeviceDisconnected?.Invoke(DeviceBluetoothAddress);
+            
+            return ValueTask.CompletedTask;
         }
 
         /// <summary>
