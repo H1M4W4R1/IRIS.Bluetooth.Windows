@@ -108,12 +108,12 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// </summary>
         /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
         /// <returns>True if the connection process was successfully started; otherwise, false.</returns>
-        public bool Connect(CancellationToken cancellationToken = default)
+        public ValueTask<bool> Connect(CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
 
             // Prevent if already running
-            if (IsRunning) return true;
+            if (IsRunning) return ValueTask.FromResult(true);
 
             try
             {
@@ -121,14 +121,14 @@ namespace IRIS.Bluetooth.Windows.Communication
                 _watcher.Stopped += OnWatcherStopped;
                 _watcher.Start();
                 IsRunning = true;
-                return true;
+                return ValueTask.FromResult(true);
             }
             catch (Exception exception)
             {
                 Debug.WriteLine($"Failed to start Bluetooth LE watcher: {exception}");
                 _watcher.Received -= OnAdvertisementReceived;
                 _watcher.Stopped -= OnWatcherStopped;
-                return false;
+                return ValueTask.FromResult(false);
             }
         }
 
@@ -136,22 +136,22 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// Disconnects from all connected devices and stops the device discovery process.
         /// </summary>
         /// <returns>True if the disconnection was successful; otherwise, false.</returns>
-        public bool Disconnect()
+        public ValueTask<bool> Disconnect()
         {
             ThrowIfDisposed();
 
-            if (!IsRunning) return true;
+            if (!IsRunning) return ValueTask.FromResult(true);
 
             try
             {
                 DisconnectAllDevices();
                 StopWatcher();
-                return true;
+                return ValueTask.FromResult(true);
             }
             catch (Exception exception)
             {
                 Debug.WriteLine($"Error during disconnect: {exception}");
-                return false;
+                return ValueTask.FromResult(false);
             }
         }
 
@@ -177,11 +177,11 @@ namespace IRIS.Bluetooth.Windows.Communication
             IsRunning = false;
         }
 
-        private void OnWatcherStopped(
+        private async void OnWatcherStopped(
             BluetoothLEAdvertisementWatcher sender,
             BluetoothLEAdvertisementWatcherStoppedEventArgs args)
         {
-            Disconnect();
+            await Disconnect();
         }
 
         private void OnAdvertisementReceived(
@@ -341,11 +341,11 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// <summary>
         /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
         /// </summary>
-        public void Dispose()
+        public async void Dispose()
         {
             if (_disposed) return;
 
-            Disconnect();
+            await Disconnect();
             try
             {
                 StopWatcher();
