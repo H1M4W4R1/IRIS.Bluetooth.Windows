@@ -270,15 +270,24 @@ namespace IRIS.Bluetooth.Windows.Communication
             {
                 device = _discoveredDevices.FirstOrDefault(d => !_connectedDevices.Contains(d));
             }
-            
+
+            // Try to discover device if not found
             device ??= await new DiscoverNewBluetoothDevice(this, cancellationToken);
+
+            // Return if device is null
+            if (device == null) return null;
+
+            // Wait until device is configured
+            await new WaitUntilBluetoothDeviceIsConfigured(device, cancellationToken);
+            
+            // Register device
             RegisterDevice(device);
             return device;
 
             void RegisterDevice(IBluetoothLEDevice? deviceInstance)
             {
                 if (deviceInstance == null) return;
-                
+
                 lock (_devicesLock)
                 {
                     if (_connectedDevices.Contains(deviceInstance)) return;
@@ -307,7 +316,7 @@ namespace IRIS.Bluetooth.Windows.Communication
 
             OnBluetoothDeviceDisconnected?.Invoke(this, device);
             DeviceDisconnected?.Invoke(DeviceBluetoothAddress);
-            
+
             return ValueTask.CompletedTask;
         }
 

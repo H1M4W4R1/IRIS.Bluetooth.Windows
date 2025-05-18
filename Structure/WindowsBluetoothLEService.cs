@@ -5,45 +5,41 @@ using IRIS.Bluetooth.Common.Abstract;
 
 namespace IRIS.Bluetooth.Windows.Structure
 {
-    internal sealed class WindowsBluetoothLEService : IBluetoothLEService
+    internal sealed class WindowsBluetoothLEService(IBluetoothLEDevice device, GattDeviceService service)
+        : IBluetoothLEService
     {
         private readonly List<IBluetoothLECharacteristic> _characteristics = new();
 
         /// <summary>
         ///     GATT service that this service is associated with
         /// </summary>
-        internal GattDeviceService? GattService { get; }
+        internal GattDeviceService? GattService { get; } = service;
 
         /// <summary>
         ///     Device that this service is associated with
         /// </summary>
-        public IBluetoothLEDevice Device { get; }
+        public IBluetoothLEDevice Device { get; } = device;
 
         /// <summary>
         ///     UUID of the service
         /// </summary>
-        public string UUID { get; }
+        public string UUID { get; } = service.Uuid.ToString();
 
         public IReadOnlyList<IBluetoothLECharacteristic> Characteristics => _characteristics;
 
-        public WindowsBluetoothLEService(IBluetoothLEDevice device, GattDeviceService service)
+        internal async ValueTask SetupService()
         {
-            Device = device;
-            UUID = service.Uuid.ToString();
-            GattService = service;
-
-            // Construct characteristic list
-            IAsyncOperation<GattCharacteristicsResult>? asyncOp = service.GetCharacteristicsAsync();
-
-            while (asyncOp.Status is not AsyncStatus.Completed) ;
-
-            // Get async operation results
-            GattCharacteristicsResult? result = asyncOp.GetResults();
-
-            // Check if status is success
-            if (result.Status is not GattCommunicationStatus.Success) return;
+            // Check if GATT service is null
+            if (GattService is null) return;
             
-            foreach (GattCharacteristic gattCharacteristic in result.Characteristics)
+            // Get all characteristics
+            GattCharacteristicsResult? characteristics = await GattService.GetCharacteristicsAsync();
+            
+            // Check if status is success
+            if (characteristics.Status is not GattCommunicationStatus.Success) return;
+            
+            // Construct characteristic list
+            foreach (GattCharacteristic gattCharacteristic in characteristics.Characteristics)
             {
                 _characteristics.Add(new WindowsBluetoothLECharacteristic(this, gattCharacteristic));
             }
