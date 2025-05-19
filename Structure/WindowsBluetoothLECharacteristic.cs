@@ -5,7 +5,6 @@ using IRIS.Bluetooth.Common.Abstract;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Storage.Streams;
-using IRIS.Bluetooth.Common.Data;
 
 namespace IRIS.Bluetooth.Windows.Structure
 {

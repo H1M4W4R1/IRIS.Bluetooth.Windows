@@ -351,10 +351,6 @@ namespace IRIS.Bluetooth.Windows.Communication
             RegisterDevice(device);
             return device;
 
-            /// <summary>
-            /// Registers a device as connected and notifies listeners.
-            /// </summary>
-            /// <param name="deviceInstance">The device instance to register</param>
             void RegisterDevice(IBluetoothLEDevice? deviceInstance)
             {
                 if (deviceInstance == null) return;

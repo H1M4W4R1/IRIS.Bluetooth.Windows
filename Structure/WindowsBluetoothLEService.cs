@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
-using Windows.Foundation;
 using IRIS.Bluetooth.Common.Abstract;
 
 namespace IRIS.Bluetooth.Windows.Structure
