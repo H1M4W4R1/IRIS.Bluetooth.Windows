@@ -16,7 +16,7 @@ namespace IRIS.Bluetooth.Windows.Communication
     /// The implementation uses Windows.Devices.Bluetooth APIs for BLE operations.
     /// </summary>
     public sealed class WindowsBluetoothLEInterface(IBluetoothLEAddress deviceAddress)
-        : IBluetoothLEInterface, IDisposable
+        : IBluetoothLEInterface
     {
         /// <summary>
         /// Internal list of currently connected Bluetooth LE devices.
@@ -34,11 +34,6 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// Lock object for synchronizing access to device collections.
         /// </summary>
         private readonly object _devicesLock = new();
-
-        /// <summary>
-        /// Flag indicating whether this instance has been disposed.
-        /// </summary>
-        private bool _disposed;
 
         /// <summary>
         /// Gets a thread-safe read-only list of all discovered Bluetooth LE devices.
@@ -144,8 +139,6 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// <exception cref="ObjectDisposedException">Thrown if the interface has been disposed.</exception>
         public ValueTask<bool> Connect(CancellationToken cancellationToken = default)
         {
-            ThrowIfDisposed();
-
             // Prevent if already running
             if (IsRunning) return ValueTask.FromResult(true);
 
@@ -174,8 +167,6 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// <exception cref="ObjectDisposedException">Thrown if the interface has been disposed.</exception>
         public ValueTask<bool> Disconnect()
         {
-            ThrowIfDisposed();
-
             if (!IsRunning) return ValueTask.FromResult(true);
 
             try
@@ -240,8 +231,6 @@ namespace IRIS.Bluetooth.Windows.Communication
             BluetoothLEAdvertisementWatcher sender,
             BluetoothLEAdvertisementReceivedEventArgs args)
         {
-            ThrowIfDisposed();
-
             try
             {
                 ProcessAdvertisement(args);
@@ -290,8 +279,6 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// <param name="args">Event arguments (unused)</param>
         private void OnDeviceConnectionStatusChanged(BluetoothLEDevice sender, object args)
         {
-            ThrowIfDisposed();
-
             if (sender.ConnectionStatus != BluetoothConnectionStatus.Disconnected) return;
             AttemptToDisconnectDevice(sender);
 
@@ -406,38 +393,5 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// Maintained for API compatibility with legacy code.
         /// </summary>
         public event Delegates.DeviceConnectionLostHandler<IBluetoothLEAddress>? DeviceConnectionLost;
-
-        /// <summary>
-        /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
-        /// This includes disconnecting from all devices and stopping the Bluetooth watcher.
-        /// </summary>
-        public async void Dispose()
-        {
-            if (_disposed) return;
-
-            await Disconnect();
-            try
-            {
-                StopWatcher();
-            }
-            catch (Exception exception)
-            {
-                Debug.WriteLine($"Error stopping watcher: {exception}");
-            }
-
-            _disposed = true;
-        }
-
-        /// <summary>
-        /// Throws an ObjectDisposedException if this instance has been disposed.
-        /// </summary>
-        /// <exception cref="ObjectDisposedException">Thrown when the instance has been disposed.</exception>
-        private void ThrowIfDisposed()
-        {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(nameof(WindowsBluetoothLEInterface));
-            }
-        }
     }
 }
