@@ -7,6 +7,7 @@ using IRIS.Bluetooth.Common;
 using IRIS.Bluetooth.Common.Abstract;
 using IRIS.Operations;
 using IRIS.Operations.Abstract;
+using IRIS.Operations.Attributes;
 using IRIS.Operations.Data;
 using IRIS.Operations.Generic;
 
@@ -73,6 +74,7 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// </summary>
         /// <param name="cancellationToken">Token to cancel the operation.</param>
         /// <returns>The characteristic's value as a byte array, or null if the read operation fails.</returns>
+        [OperationReadType(typeof(byte[]))]
         internal async ValueTask<IDeviceOperationResult> ReadAsync(CancellationToken cancellationToken = default)
         {
             try
