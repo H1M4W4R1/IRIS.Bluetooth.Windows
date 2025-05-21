@@ -1,8 +1,13 @@
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using IRIS.Bluetooth.Common;
 using IRIS.Bluetooth.Common.Abstract;
+using IRIS.Operations;
+using IRIS.Operations.Abstract;
+using IRIS.Operations.Data;
+using IRIS.Operations.Generic;
 using IRIS.Utility;
 
 namespace IRIS.Bluetooth.Windows.Structure
@@ -41,6 +46,10 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// </summary>
         public bool IsConfigured { get; private set; }
 
+        internal bool ConfigurationFailed { get; private set; }
+
+        bool IBluetoothLEDevice.ConfigurationFailed => ConfigurationFailed;
+
         /// <summary>
         ///     Provides read-only access to all discovered services on the device.
         /// </summary>
@@ -66,29 +75,46 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// </summary>
         private async ValueTask SetupDevice()
         {
-            // Check if device is null
-            if (HardwareDevice == null) return;
-            
-            // Discover services
-            GattDeviceServicesResult services = await HardwareDevice.GetGattServicesAsync();
-            
-            // Check if success
-            if (services.Status is not GattCommunicationStatus.Success) return;
-            
-            // Register services
-            foreach (GattDeviceService gattService in services.Services)
+            try
             {
-                // Create new service
-                WindowsBluetoothLEService service = new WindowsBluetoothLEService(this, gattService);
-                
-                // Setup service
-                await service.SetupService();
-                
-                // Add to list
-                _services.Add(service);
+                // Check if device is null
+                if (HardwareDevice == null)
+                {
+                    ConfigurationFailed = true;
+                    return;
+                }
+
+                // Discover services
+                GattDeviceServicesResult services = await HardwareDevice.GetGattServicesAsync();
+
+                // Check if success
+                if (services.Status is not GattCommunicationStatus.Success)
+                {
+                    ConfigurationFailed = true;
+                    return;
+                }
+
+                // Register services
+                foreach (GattDeviceService gattService in services.Services)
+                {
+                    // Create new service
+                    WindowsBluetoothLEService service = new WindowsBluetoothLEService(this, gattService);
+
+                    // Setup service
+                    await service.SetupService();
+
+                    // Add to list
+                    _services.Add(service);
+                }
+
+                IsConfigured = true;
             }
-            
-            IsConfigured = true;
+            catch (Exception anyException)
+            {
+                Debug.WriteLine(anyException);
+                ConfigurationFailed = true;
+            }
+
             DeviceConfigured?.Invoke(this);
         }
 
@@ -97,17 +123,23 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// </summary>
         /// <param name="characteristicUUIDRegex">Regular expression pattern to match characteristic UUIDs.</param>
         /// <returns>A read-only list of matching characteristics.</returns>
-        public IReadOnlyList<IBluetoothLECharacteristic> GetAllCharacteristicsForUUID(
-            string characteristicUUIDRegex)
+        public IDeviceOperationResult GetAllCharacteristicsForUUID(string characteristicUUIDRegex)
         {
+            if (ConfigurationFailed) return DeviceOperation.Result<DeviceConfigurationFailedResult>();
+            if (!IsConfigured) return DeviceOperation.Result<DeviceNotConfiguredResult>();
+            
             List<IBluetoothLECharacteristic> characteristics = [];
 
             foreach (IBluetoothLEService service in Services)
             {
-                characteristics.AddRange(service.GetAllCharacteristicsForUUID(characteristicUUIDRegex));
+                IDeviceOperationResult result = service.GetAllCharacteristicsForUUID(characteristicUUIDRegex);
+                if (DeviceOperation.IsFailure(result, out IDeviceOperationResult proxyResult)) return proxyResult;
+                
+                if (result is IDeviceOperationResult<IReadOnlyList<IBluetoothLECharacteristic>> dataResult)
+                    characteristics.AddRange(dataResult.Data);
             }
 
-            return characteristics;
+            return new DeviceDataReadSuccessfulResult<IReadOnlyList<IBluetoothLECharacteristic>>(characteristics);
         }
 
         /// <summary>
@@ -115,9 +147,11 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// </summary>
         /// <param name="serviceUUIDRegex">Regular expression pattern to match service UUIDs.</param>
         /// <returns>A read-only list of characteristics from matching services.</returns>
-        public IReadOnlyList<IBluetoothLECharacteristic> GetAllCharacteristicsForServices(
-            string serviceUUIDRegex)
+        public IDeviceOperationResult GetAllCharacteristicsForServices(string serviceUUIDRegex)
         {
+            if (ConfigurationFailed) return DeviceOperation.Result<DeviceConfigurationFailedResult>();
+            if (!IsConfigured) return DeviceOperation.Result<DeviceNotConfiguredResult>();
+            
             List<IBluetoothLECharacteristic> characteristics = [];
 
             foreach (IBluetoothLEService service in Services)
@@ -126,16 +160,21 @@ namespace IRIS.Bluetooth.Windows.Structure
                     characteristics.AddRange(service.Characteristics);
             }
 
-            return characteristics;
+            return new DeviceDataReadSuccessfulResult<IReadOnlyList<IBluetoothLECharacteristic>>(characteristics);
         }
 
         /// <summary>
         ///     Retrieves all characteristics from all services on the device.
         /// </summary>
         /// <returns>A read-only list of all characteristics.</returns>
-        public IReadOnlyList<IBluetoothLECharacteristic> GetAllCharacteristics()
+        public IDeviceOperationResult GetAllCharacteristics()
         {
-            return Services.SelectMany(service => service.Characteristics).ToList();
+            if (ConfigurationFailed) return DeviceOperation.Result<DeviceConfigurationFailedResult>();
+            if (!IsConfigured) return DeviceOperation.Result<DeviceNotConfiguredResult>();
+            
+            List<IBluetoothLECharacteristic> data =  Services.SelectMany(service => service.Characteristics).ToList();
+
+            return new DeviceDataReadSuccessfulResult<IReadOnlyList<IBluetoothLECharacteristic>>(data);
         }
 
         /// <summary>
@@ -143,8 +182,11 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// </summary>
         /// <param name="serviceUUIDRegex">Regular expression pattern to match service UUIDs.</param>
         /// <returns>A read-only list of matching services.</returns>
-        public IReadOnlyList<IBluetoothLEService> GetAllServicesForUUID(string serviceUUIDRegex)
+        public IDeviceOperationResult GetAllServicesForUUID(string serviceUUIDRegex)
         {
+            if (ConfigurationFailed) return DeviceOperation.Result<DeviceConfigurationFailedResult>();
+            if (!IsConfigured) return DeviceOperation.Result<DeviceNotConfiguredResult>();
+            
             List<IBluetoothLEService> services = [];
 
             foreach (IBluetoothLEService service in Services)
@@ -152,7 +194,7 @@ namespace IRIS.Bluetooth.Windows.Structure
                 if (Regex.IsMatch(service.UUID, serviceUUIDRegex)) services.Add(service);
             }
 
-            return services;
+            return new DeviceDataReadSuccessfulResult<IReadOnlyList<IBluetoothLEService>>(services);
         }
 
         /// <summary>

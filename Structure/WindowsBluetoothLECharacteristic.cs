@@ -5,6 +5,10 @@ using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Storage.Streams;
 using IRIS.Bluetooth.Common;
 using IRIS.Bluetooth.Common.Abstract;
+using IRIS.Operations;
+using IRIS.Operations.Abstract;
+using IRIS.Operations.Data;
+using IRIS.Operations.Generic;
 
 namespace IRIS.Bluetooth.Windows.Structure
 {
@@ -69,39 +73,42 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// </summary>
         /// <param name="cancellationToken">Token to cancel the operation.</param>
         /// <returns>The characteristic's value as a byte array, or null if the read operation fails.</returns>
-        internal async ValueTask<byte[]?> ReadAsync(CancellationToken cancellationToken = default)
+        internal async ValueTask<IDeviceOperationResult> ReadAsync(CancellationToken cancellationToken = default)
         {
             try
             {
-                if (!IsAvailable) return null;
+                if (!IsAvailable) return DeviceOperation.Result<DeviceNotAvailableResult>();
 
                 GattReadResult result = await GattCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached)
                     .AsTask(cancellationToken);
-                if (result.Status != GattCommunicationStatus.Success) return null;
+                if (result.Status != GattCommunicationStatus.Success)
+                    return DeviceOperation.Result<DeviceNotRespondingResult>(); 
 
                 byte[] data = new byte[result.Value.Length];
                 using DataReader reader = DataReader.FromBuffer(result.Value);
                 reader.ReadBytes(data);
 
-                return data;
+                return new DeviceDataReadSuccessfulResult<byte[]>(data);
             }
             catch (Exception exception)
             {
                 Debug.WriteLine(exception);
-                return null;
+                return DeviceOperation.Result<DeviceReadFailedResult>();
             }
         }
 
         /// <summary>
         ///     Explicit interface implementation for writing to the characteristic.
         /// </summary>
-        ValueTask<bool> IBluetoothLECharacteristic.WriteAsync(byte[] data, CancellationToken cancellationToken) =>
+        ValueTask<IDeviceOperationResult> IBluetoothLECharacteristic.WriteAsync(
+            byte[] data,
+            CancellationToken cancellationToken) =>
             WriteAsync(data, cancellationToken);
 
         /// <summary>
         ///     Explicit interface implementation for reading from the characteristic.
         /// </summary>
-        ValueTask<byte[]?> IBluetoothLECharacteristic.ReadAsync(CancellationToken cancellationToken) =>
+        ValueTask<IDeviceOperationResult> IBluetoothLECharacteristic.ReadAsync(CancellationToken cancellationToken) =>
             ReadAsync(cancellationToken);
 
         /// <summary>
@@ -110,11 +117,11 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// <param name="data">The data to write.</param>
         /// <param name="cancellationToken">Token to cancel the operation.</param>
         /// <returns>True if the write operation was successful, false otherwise.</returns>
-        internal async ValueTask<bool> WriteAsync(byte[] data, CancellationToken cancellationToken = default)
+        internal async ValueTask<IDeviceOperationResult> WriteAsync(byte[] data, CancellationToken cancellationToken = default)
         {
             try
             {
-                if (!IsAvailable) return false;
+                if (!IsAvailable) return DeviceOperation.Result<DeviceNotAvailableResult>();
 
                 using DataWriter writer = new();
                 writer.WriteBytes(data);
@@ -122,12 +129,15 @@ namespace IRIS.Bluetooth.Windows.Structure
                     .WriteValueAsync(writer.DetachBuffer(), GattWriteOption.WriteWithoutResponse)
                     .AsTask(cancellationToken);
 
-                return status == GattCommunicationStatus.Success;
+                if(status != GattCommunicationStatus.Success) 
+                    return DeviceOperation.Result<DeviceNotRespondingResult>();
+                
+                return DeviceOperation.Result<DeviceWriteSuccessfulResult>();
             }
             catch (Exception exception)
             {
                 Debug.WriteLine(exception);
-                return false;
+                return DeviceOperation.Result<DeviceWriteFailedResult>();
             }
         }
 
@@ -136,26 +146,28 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// </summary>
         /// <param name="cancellationToken">Token to cancel the operation.</param>
         /// <returns>True if the subscription was successful, false otherwise.</returns>
-        public async ValueTask<bool> SubscribeAsync(CancellationToken cancellationToken = default)
+        public async ValueTask<IDeviceOperationResult> SubscribeAsync(
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                if (!IsAvailable) return false;
+                if (!IsAvailable) return DeviceOperation.Result<DeviceNotAvailableResult>();
 
                 GattCommunicationStatus status = await GattCharacteristic
                     .WriteClientCharacteristicConfigurationDescriptorAsync(
                         GattClientCharacteristicConfigurationDescriptorValue.Notify)
                     .AsTask(cancellationToken);
 
-                if (status != GattCommunicationStatus.Success) return false;
+                if (status != GattCommunicationStatus.Success) 
+                    return DeviceOperation.Result<DeviceNotRespondingResult>();
 
                 GattCharacteristic.ValueChanged += OnValueChanged;
-                return true;
+                return DeviceOperation.Result<DeviceSubscriptionSuccessfulResult>();
             }
             catch (Exception exception)
             {
                 Debug.WriteLine(exception);
-                return false;
+                return DeviceOperation.Result<DeviceSubscriptionFailedResult>();
             }
         }
 
@@ -164,26 +176,28 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// </summary>
         /// <param name="cancellationToken">Token to cancel the operation.</param>
         /// <returns>True if the unsubscription was successful, false otherwise.</returns>
-        public async ValueTask<bool> UnsubscribeAsync(CancellationToken cancellationToken = default)
+        public async ValueTask<IDeviceOperationResult> UnsubscribeAsync(
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                if (!IsAvailable) return false;
+                if (!IsAvailable) return DeviceOperation.Result<DeviceNotAvailableResult>();
 
                 GattCommunicationStatus status = await GattCharacteristic
                     .WriteClientCharacteristicConfigurationDescriptorAsync(
                         GattClientCharacteristicConfigurationDescriptorValue.None)
                     .AsTask(cancellationToken);
 
-                if (status != GattCommunicationStatus.Success) return false;
+                if (status != GattCommunicationStatus.Success) 
+                    return DeviceOperation.Result<DeviceNotRespondingResult>();
 
                 GattCharacteristic.ValueChanged -= OnValueChanged;
-                return true;
+                return DeviceOperation.Result<DeviceUnsubscriptionSuccessfulResult>();
             }
             catch (Exception exception)
             {
                 Debug.WriteLine(exception);
-                return false;
+                return DeviceOperation.Result<DeviceUnsubscriptionFailedResult>();
             }
         }
 

@@ -1,6 +1,10 @@
 using System.Text.RegularExpressions;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using IRIS.Bluetooth.Common.Abstract;
+using IRIS.Operations;
+using IRIS.Operations.Abstract;
+using IRIS.Operations.Data;
+using IRIS.Operations.Generic;
 
 namespace IRIS.Bluetooth.Windows.Structure
 {
@@ -62,9 +66,11 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// </summary>
         /// <param name="characteristicUUIDRegex">Regular expression pattern to match characteristic UUIDs.</param>
         /// <returns>A read-only list of matching characteristics.</returns>
-        public IReadOnlyList<IBluetoothLECharacteristic> GetAllCharacteristicsForUUID(
-            string characteristicUUIDRegex)
+        public IDeviceOperationResult GetAllCharacteristicsForUUID(string characteristicUUIDRegex)
         {
+            if (Device.ConfigurationFailed) return DeviceOperation.Result<DeviceConfigurationFailedResult>();
+            if (!Device.IsConfigured) return DeviceOperation.Result<DeviceNotConfiguredResult>();
+            
             List<IBluetoothLECharacteristic> characteristics = [];
 
             foreach (IBluetoothLECharacteristic characteristic in Characteristics)
@@ -73,7 +79,7 @@ namespace IRIS.Bluetooth.Windows.Structure
                     characteristics.Add(characteristic);
             }
 
-            return characteristics;
+            return new DeviceDataReadSuccessfulResult<IReadOnlyList<IBluetoothLECharacteristic>>(characteristics);
         }
     }
 }
