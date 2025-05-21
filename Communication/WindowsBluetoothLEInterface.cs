@@ -257,6 +257,10 @@ namespace IRIS.Bluetooth.Windows.Communication
             Debug.WriteLine($"Discovered device: {device.Name} ({device.BluetoothAddress})");
 
             WindowsBluetoothLEDevice bluetoothDevice = new(device);
+            
+            // Wait until device is configured
+            await new WaitUntilBluetoothDeviceIsConfigured(bluetoothDevice, CancellationToken.None);
+            
             if (!DeviceBluetoothAddress.IsDeviceValid(bluetoothDevice))
             {
                 Debug.WriteLine(
@@ -331,7 +335,7 @@ namespace IRIS.Bluetooth.Windows.Communication
             if (device == null) return null;
 
             // Wait until device is configured
-            await new WaitUntilBluetoothDeviceIsConfigured(device, cancellationToken);
+            await new WaitUntilBluetoothDeviceIsConfigured(device, CancellationToken.None);
             
             // Register device
             RegisterDevice(device);
