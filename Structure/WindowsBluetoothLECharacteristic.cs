@@ -88,7 +88,7 @@ namespace IRIS.Bluetooth.Windows.Structure
                 using DataReader reader = DataReader.FromBuffer(result.Value);
                 reader.ReadBytes(data);
 
-                return new DeviceDataReadSuccessfulResult<byte[]>(data);
+                return new DeviceReadSuccessful<byte[]>(data);
             }
             catch (Exception exception)
             {

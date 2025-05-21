@@ -140,7 +140,7 @@ namespace IRIS.Bluetooth.Windows.Structure
                     characteristics.AddRange(dataResult.Data);
             }
 
-            return new DeviceDataReadSuccessfulResult<IReadOnlyList<IBluetoothLECharacteristic>>(characteristics);
+            return new DeviceReadSuccessful<IReadOnlyList<IBluetoothLECharacteristic>>(characteristics);
         }
 
         /// <summary>
@@ -161,7 +161,7 @@ namespace IRIS.Bluetooth.Windows.Structure
                     characteristics.AddRange(service.Characteristics);
             }
 
-            return new DeviceDataReadSuccessfulResult<IReadOnlyList<IBluetoothLECharacteristic>>(characteristics);
+            return new DeviceReadSuccessful<IReadOnlyList<IBluetoothLECharacteristic>>(characteristics);
         }
 
         /// <summary>
@@ -175,7 +175,7 @@ namespace IRIS.Bluetooth.Windows.Structure
             
             List<IBluetoothLECharacteristic> data =  Services.SelectMany(service => service.Characteristics).ToList();
 
-            return new DeviceDataReadSuccessfulResult<IReadOnlyList<IBluetoothLECharacteristic>>(data);
+            return new DeviceReadSuccessful<IReadOnlyList<IBluetoothLECharacteristic>>(data);
         }
 
         /// <summary>
@@ -195,7 +195,7 @@ namespace IRIS.Bluetooth.Windows.Structure
                 if (Regex.IsMatch(service.UUID, serviceUUIDRegex)) services.Add(service);
             }
 
-            return new DeviceDataReadSuccessfulResult<IReadOnlyList<IBluetoothLEService>>(services);
+            return new DeviceReadSuccessful<IReadOnlyList<IBluetoothLEService>>(services);
         }
 
         /// <summary>

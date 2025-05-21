@@ -80,7 +80,7 @@ namespace IRIS.Bluetooth.Windows.Structure
                     characteristics.Add(characteristic);
             }
 
-            return new DeviceDataReadSuccessfulResult<IReadOnlyList<IBluetoothLECharacteristic>>(characteristics);
+            return new DeviceReadSuccessful<IReadOnlyList<IBluetoothLECharacteristic>>(characteristics);
         }
     }
 }
