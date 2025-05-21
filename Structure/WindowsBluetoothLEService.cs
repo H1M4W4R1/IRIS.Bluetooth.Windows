@@ -3,6 +3,7 @@ using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using IRIS.Bluetooth.Common.Abstract;
 using IRIS.Operations;
 using IRIS.Operations.Abstract;
+using IRIS.Operations.Configuration;
 using IRIS.Operations.Data;
 using IRIS.Operations.Generic;
 
