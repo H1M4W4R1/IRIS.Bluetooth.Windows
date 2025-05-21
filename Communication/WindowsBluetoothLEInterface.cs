@@ -7,6 +7,10 @@ using IRIS.Bluetooth.Common.Addressing;
 using IRIS.Bluetooth.Common.Utility;
 using IRIS.Bluetooth.Windows.Structure;
 using IRIS.Communication;
+using IRIS.Operations;
+using IRIS.Operations.Abstract;
+using IRIS.Operations.Connection;
+using IRIS.Operations.Generic;
 
 namespace IRIS.Bluetooth.Windows.Communication
 {
@@ -135,12 +139,10 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// This method sets up the advertisement watcher and begins scanning for devices.
         /// </summary>
         /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-        /// <returns>True if the connection process was successfully started; otherwise, false.</returns>
-        /// <exception cref="ObjectDisposedException">Thrown if the interface has been disposed.</exception>
-        public ValueTask<bool> Connect(CancellationToken cancellationToken = default)
+        public ValueTask<IDeviceOperationResult> Connect(CancellationToken cancellationToken = default)
         {
             // Prevent if already running
-            if (IsRunning) return ValueTask.FromResult(true);
+            if (IsRunning) return DeviceOperation.VResult<DeviceAlreadyConnectedResult>();
 
             try
             {
@@ -148,14 +150,14 @@ namespace IRIS.Bluetooth.Windows.Communication
                 _watcher.Stopped += OnWatcherStopped;
                 _watcher.Start();
                 IsRunning = true;
-                return ValueTask.FromResult(true);
+                return DeviceOperation.VResult<DeviceConnectedSuccessfullyResult>();
             }
             catch (Exception exception)
             {
                 Debug.WriteLine($"Failed to start Bluetooth LE watcher: {exception}");
                 _watcher.Received -= OnAdvertisementReceived;
                 _watcher.Stopped -= OnWatcherStopped;
-                return ValueTask.FromResult(false);
+                return DeviceOperation.VResult<DeviceConnectionFailedResult>();
             }
         }
 
@@ -163,22 +165,20 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// Disconnects from all connected devices and stops the device discovery process.
         /// This method ensures proper cleanup of all device connections and the advertisement watcher.
         /// </summary>
-        /// <returns>True if the disconnection was successful; otherwise, false.</returns>
-        /// <exception cref="ObjectDisposedException">Thrown if the interface has been disposed.</exception>
-        public ValueTask<bool> Disconnect()
+        public ValueTask<IDeviceOperationResult> Disconnect()
         {
-            if (!IsRunning) return ValueTask.FromResult(true);
+            if (!IsRunning) return DeviceOperation.VResult<DeviceAlreadyDisconnectedResult>();
 
             try
             {
                 DisconnectAllDevices();
                 StopWatcher();
-                return ValueTask.FromResult(true);
+                return DeviceOperation.VResult<DeviceDisconnectedSuccessfullyResult>();
             }
             catch (Exception exception)
             {
                 Debug.WriteLine($"Error during disconnect: {exception}");
-                return ValueTask.FromResult(false);
+                return DeviceOperation.VResult<DeviceDisconnectionFailedResult>();
             }
         }
 
