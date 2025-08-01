@@ -10,6 +10,7 @@ using IRIS.Operations.Abstract;
 using IRIS.Operations.Attributes;
 using IRIS.Operations.Data;
 using IRIS.Operations.Generic;
+using IRIS.Utility;
 
 namespace IRIS.Bluetooth.Windows.Structure
 {
@@ -48,7 +49,9 @@ namespace IRIS.Bluetooth.Windows.Structure
         ///     Indicates whether this characteristic supports write operations (including write without response).
         /// </summary>
         public bool IsWrite
-            => GattCharacteristic?.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Write | GattCharacteristicProperties.WriteWithoutResponse) == true;
+            => GattCharacteristic?.CharacteristicProperties.HasFlag(GattCharacteristicProperties.Write |
+                                                                    GattCharacteristicProperties
+                                                                        .WriteWithoutResponse) == true;
 
         /// <summary>
         ///     Indicates whether this characteristic supports notifications.
@@ -65,8 +68,7 @@ namespace IRIS.Bluetooth.Windows.Structure
         ///     Indicates whether the characteristic is available for operations.
         ///     When true, the GattCharacteristic property is guaranteed to be non-null.
         /// </summary>
-        [MemberNotNullWhen(true, nameof(GattCharacteristic))] 
-        public bool IsAvailable
+        [MemberNotNullWhen(true, nameof(GattCharacteristic))] public bool IsAvailable
             => GattCharacteristic is not null;
 
         /// <summary>
@@ -79,12 +81,20 @@ namespace IRIS.Bluetooth.Windows.Structure
         {
             try
             {
-                if (!IsAvailable) return DeviceOperation.Result<DeviceNotAvailableResult>();
+                if (!IsAvailable)
+                {
+                    Notify.Error(nameof(WindowsBluetoothLECharacteristic), "Requested characteristic is invalid.");
+                    return DeviceOperation.Result<DeviceNotAvailableResult>();
+                }
 
                 GattReadResult result = await GattCharacteristic.ReadValueAsync(BluetoothCacheMode.Uncached)
                     .AsTask(cancellationToken);
                 if (result.Status != GattCommunicationStatus.Success)
-                    return DeviceOperation.Result<DeviceNotRespondingResult>(); 
+                {
+                    Notify.Error(nameof(WindowsBluetoothLECharacteristic),
+                        $"Device communication wasn't successful. Status: {result.Status}");
+                    return DeviceOperation.Result<DeviceNotRespondingResult>();
+                }
 
                 byte[] data = new byte[result.Value.Length];
                 using DataReader reader = DataReader.FromBuffer(result.Value);
@@ -94,7 +104,8 @@ namespace IRIS.Bluetooth.Windows.Structure
             }
             catch (Exception exception)
             {
-                Debug.WriteLine(exception);
+                Notify.Critical(nameof(WindowsBluetoothLECharacteristic),
+                    $"Exception occured during characteristic read: {exception}.");
                 return DeviceOperation.Result<DeviceReadFailedResult>();
             }
         }
@@ -110,8 +121,9 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// <summary>
         ///     Explicit interface implementation for reading from the characteristic.
         /// </summary>
-        ValueTask<IDeviceOperationResult> IBluetoothLECharacteristic.ReadAsync(CancellationToken cancellationToken) =>
-            ReadAsync(cancellationToken);
+        ValueTask<IDeviceOperationResult> IBluetoothLECharacteristic.ReadAsync(CancellationToken cancellationToken)
+            =>
+                ReadAsync(cancellationToken);
 
         /// <summary>
         ///     Writes data to the characteristic.
@@ -119,11 +131,17 @@ namespace IRIS.Bluetooth.Windows.Structure
         /// <param name="data">The data to write.</param>
         /// <param name="cancellationToken">Token to cancel the operation.</param>
         /// <returns>True if the write operation was successful, false otherwise.</returns>
-        internal async ValueTask<IDeviceOperationResult> WriteAsync(byte[] data, CancellationToken cancellationToken = default)
+        internal async ValueTask<IDeviceOperationResult> WriteAsync(
+            byte[] data,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                if (!IsAvailable) return DeviceOperation.Result<DeviceNotAvailableResult>();
+                if (!IsAvailable)
+                {
+                    Notify.Error(nameof(WindowsBluetoothLECharacteristic), "Requested characteristic is invalid.");
+                    return DeviceOperation.Result<DeviceNotAvailableResult>();
+                }
 
                 using DataWriter writer = new();
                 writer.WriteBytes(data);
@@ -131,14 +149,19 @@ namespace IRIS.Bluetooth.Windows.Structure
                     .WriteValueAsync(writer.DetachBuffer(), GattWriteOption.WriteWithoutResponse)
                     .AsTask(cancellationToken);
 
-                if(status != GattCommunicationStatus.Success) 
+                if (status != GattCommunicationStatus.Success)
+                {
+                    Notify.Error(nameof(WindowsBluetoothLECharacteristic),
+                        $"Device communication wasn't successful. Status: {status}");
                     return DeviceOperation.Result<DeviceNotRespondingResult>();
-                
+                }
+
                 return DeviceOperation.Result<DeviceWriteSuccessfulResult>();
             }
             catch (Exception exception)
             {
-                Debug.WriteLine(exception);
+                Notify.Critical(nameof(WindowsBluetoothLECharacteristic),
+                    $"Exception occured during characteristic write: {exception}.");
                 return DeviceOperation.Result<DeviceWriteFailedResult>();
             }
         }
@@ -153,22 +176,31 @@ namespace IRIS.Bluetooth.Windows.Structure
         {
             try
             {
-                if (!IsAvailable) return DeviceOperation.Result<DeviceNotAvailableResult>();
+                if (!IsAvailable)
+                {
+                    Notify.Error(nameof(WindowsBluetoothLECharacteristic), "Requested characteristic is invalid.");
+                    return DeviceOperation.Result<DeviceNotAvailableResult>();
+                }
 
                 GattCommunicationStatus status = await GattCharacteristic
                     .WriteClientCharacteristicConfigurationDescriptorAsync(
                         GattClientCharacteristicConfigurationDescriptorValue.Notify)
                     .AsTask(cancellationToken);
 
-                if (status != GattCommunicationStatus.Success) 
+                if (status != GattCommunicationStatus.Success)
+                {
+                    Notify.Error(nameof(WindowsBluetoothLECharacteristic),
+                        $"Device communication wasn't successful. Status: {status}");
                     return DeviceOperation.Result<DeviceNotRespondingResult>();
+                }
 
                 GattCharacteristic.ValueChanged += OnValueChanged;
                 return DeviceOperation.Result<DeviceSubscriptionSuccessfulResult>();
             }
             catch (Exception exception)
             {
-                Debug.WriteLine(exception);
+                Notify.Critical(nameof(WindowsBluetoothLECharacteristic),
+                    $"Exception occured during characteristic subscribe: {exception}.");
                 return DeviceOperation.Result<DeviceSubscriptionFailedResult>();
             }
         }
@@ -183,22 +215,31 @@ namespace IRIS.Bluetooth.Windows.Structure
         {
             try
             {
-                if (!IsAvailable) return DeviceOperation.Result<DeviceNotAvailableResult>();
+                if (!IsAvailable)
+                {
+                    Notify.Error(nameof(WindowsBluetoothLECharacteristic), "Requested characteristic is invalid.");
+                    return DeviceOperation.Result<DeviceNotAvailableResult>();
+                }
 
                 GattCommunicationStatus status = await GattCharacteristic
                     .WriteClientCharacteristicConfigurationDescriptorAsync(
                         GattClientCharacteristicConfigurationDescriptorValue.None)
                     .AsTask(cancellationToken);
 
-                if (status != GattCommunicationStatus.Success) 
+                if (status != GattCommunicationStatus.Success)
+                {
+                    Notify.Error(nameof(WindowsBluetoothLECharacteristic),
+                        $"Device communication wasn't successful. Status: {status}");
                     return DeviceOperation.Result<DeviceNotRespondingResult>();
+                }
 
                 GattCharacteristic.ValueChanged -= OnValueChanged;
                 return DeviceOperation.Result<DeviceUnsubscriptionSuccessfulResult>();
             }
             catch (Exception exception)
             {
-                Debug.WriteLine(exception);
+                Notify.Critical(nameof(WindowsBluetoothLECharacteristic),
+                    $"Exception occured during characteristic unsubscribe: {exception}.");
                 return DeviceOperation.Result<DeviceUnsubscriptionFailedResult>();
             }
         }

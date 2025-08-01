@@ -10,6 +10,7 @@ using IRIS.Communication;
 using IRIS.Operations;
 using IRIS.Operations.Abstract;
 using IRIS.Operations.Connection;
+using IRIS.Utility;
 
 namespace IRIS.Bluetooth.Windows.Communication
 {
@@ -33,6 +34,12 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// </summary>
         private readonly List<IBluetoothLEDevice> _discoveredDevices = [];
 
+        /// <summary>
+        ///     Internal list of currently processed Bluetooth LE devices
+        ///      Thread-safe access is managed through _devicesLock.
+        /// </summary>
+        private readonly List<ulong> _devicesUnderProcessing = [];
+        
         /// <summary>
         ///     Lock object for synchronizing access to device collections.
         /// </summary>
@@ -93,6 +100,21 @@ namespace IRIS.Bluetooth.Windows.Communication
         public IBluetoothLEAddress DeviceBluetoothAddress { get; } = deviceAddress;
 
         /// <summary>
+        ///     Check if device with specified address is discovered
+        /// </summary>
+        /// <param name="deviceBluetoothAddress">Address of BLE device</param>
+        public bool IsDeviceDiscovered(ulong deviceBluetoothAddress) => 
+            _devicesUnderProcessing.Contains(deviceBluetoothAddress) ||
+            _discoveredDevices.Any(device => device.DeviceAddress == deviceBluetoothAddress);
+        
+        /// <summary>
+        ///     Check if device with specified address is connected
+        /// </summary>
+        /// <param name="deviceBluetoothAddress">Address of BLE device</param>
+        public bool IsDeviceConnected(ulong deviceBluetoothAddress) =>
+            _connectedDevices.Any(device => device.DeviceAddress == deviceBluetoothAddress);
+        
+        /// <summary>
         ///     Gets a value indicating whether the interface is currently connected to any Bluetooth LE device.
         ///     Thread-safe check against the connected devices collection.
         /// </summary>
@@ -141,7 +163,11 @@ namespace IRIS.Bluetooth.Windows.Communication
         public ValueTask<IDeviceOperationResult> Connect(CancellationToken cancellationToken = default)
         {
             // Prevent if already running
-            if (IsRunning) return DeviceOperation.VResult<DeviceAlreadyConnectedResult>();
+            if (IsRunning)
+            {
+                Notify.Verbose(nameof(WindowsBluetoothLEInterface), "Interface is already running.");
+                return DeviceOperation.VResult<DeviceAlreadyConnectedResult>();
+            }
 
             try
             {
@@ -153,7 +179,8 @@ namespace IRIS.Bluetooth.Windows.Communication
             }
             catch (Exception exception)
             {
-                Debug.WriteLine($"Failed to start Bluetooth LE watcher: {exception}");
+                Notify.Error(nameof(WindowsBluetoothLEInterface),
+                    $"Cannot start BLE Watcher due to exception: {exception}.");
                 _watcher.Received -= OnAdvertisementReceived;
                 _watcher.Stopped -= OnWatcherStopped;
                 return DeviceOperation.VResult<DeviceConnectionFailedResult>();
@@ -166,7 +193,11 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// </summary>
         public ValueTask<IDeviceOperationResult> Disconnect()
         {
-            if (!IsRunning) return DeviceOperation.VResult<DeviceAlreadyDisconnectedResult>();
+            if (!IsRunning)
+            {
+                Notify.Verbose(nameof(WindowsBluetoothLEInterface), "Interface is not running.");
+                return DeviceOperation.VResult<DeviceAlreadyDisconnectedResult>();
+            }
 
             try
             {
@@ -176,7 +207,8 @@ namespace IRIS.Bluetooth.Windows.Communication
             }
             catch (Exception exception)
             {
-                Debug.WriteLine($"Error during disconnect: {exception}");
+                Notify.Error(nameof(WindowsBluetoothLEInterface),
+                    $"Cannot stop BLE Watcher due to exception: {exception}.");
                 return DeviceOperation.VResult<DeviceDisconnectionFailedResult>();
             }
         }
@@ -187,6 +219,7 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// </summary>
         private void DisconnectAllDevices()
         {
+            Notify.Verbose(nameof(WindowsBluetoothLEInterface), "Disconnecting all BLE devices.");
             lock (_devicesLock)
             {
                 foreach (IBluetoothLEDevice device in _connectedDevices)
@@ -248,27 +281,47 @@ namespace IRIS.Bluetooth.Windows.Communication
         {
             lock (_devicesLock)
             {
+                // Check if device is already discovered
                 if (_discoveredDevices.Any(device => device.DeviceAddress == args.BluetoothAddress)) return;
+                if (_devicesUnderProcessing.Any(device => device == args.BluetoothAddress)) return;
+                
+                _devicesUnderProcessing.Add(args.BluetoothAddress);
             }
 
             BluetoothLEDevice? device = await BluetoothLEDevice.FromBluetoothAddressAsync(args.BluetoothAddress);
-            if (device == null) return;
-
-            Debug.WriteLine($"Discovered device: {device.Name} ({device.BluetoothAddress})");
-
-            WindowsBluetoothLEDevice bluetoothDevice = new(device);
-            
-            // Wait until device is configured
-            await new WaitUntilBluetoothDeviceIsConfigured(bluetoothDevice, CancellationToken.None);
-            
-            if (!DeviceBluetoothAddress.IsDeviceValid(bluetoothDevice))
+            if (device == null)
             {
-                Debug.WriteLine(
-                    $"Device {bluetoothDevice.Name} ({bluetoothDevice.DeviceAddress}) is not valid for address {DeviceBluetoothAddress}");
+                _devicesUnderProcessing.Remove(args.BluetoothAddress);
                 return;
             }
 
-            lock (_devicesLock) _discoveredDevices.Add(bluetoothDevice);
+            Notify.Verbose(nameof(WindowsBluetoothLEInterface),
+                $"Discovered BluetoothLE Device: {device.Name} ({device.BluetoothAddress})");
+            WindowsBluetoothLEDevice bluetoothDevice = new(device);
+
+            // Wait until device is configured
+            await new WaitUntilBluetoothDeviceIsConfigured(bluetoothDevice, CancellationToken.None);
+
+            // Ensure that device is valid for current address
+            if (!DeviceBluetoothAddress.IsDeviceValid(bluetoothDevice))
+            {
+                Notify.Verbose(nameof(WindowsBluetoothLEInterface),
+                    $"Device {bluetoothDevice.Name} ({bluetoothDevice.DeviceAddress:X}) is not valid for address {DeviceBluetoothAddress}");
+                _devicesUnderProcessing.Remove(args.BluetoothAddress);
+                return;
+            }
+
+            // Device has been discovered, proceed with events
+            Notify.Success(nameof(WindowsBluetoothLEInterface),
+                $"Discovered Valid BluetoothLE Device: {device.Name} ({device.BluetoothAddress:X})");
+
+            // Swap processing to discovered
+            lock (_devicesLock)
+            {
+                _discoveredDevices.Add(bluetoothDevice);
+                _devicesUnderProcessing.Remove(args.BluetoothAddress);
+            }
+            
             device.ConnectionStatusChanged += OnDeviceConnectionStatusChanged;
             OnBluetoothDeviceDiscovered?.Invoke(this, bluetoothDevice);
         }
@@ -282,6 +335,8 @@ namespace IRIS.Bluetooth.Windows.Communication
         /// <param name="args">Event arguments (unused)</param>
         private void OnDeviceConnectionStatusChanged(BluetoothLEDevice sender, object args)
         {
+            Notify.Verbose(nameof(WindowsBluetoothLEInterface),
+                $"Device {sender.Name} ({sender.BluetoothAddress:X}) status has changed to {sender.ConnectionStatus}");
             if (sender.ConnectionStatus != BluetoothConnectionStatus.Disconnected) return;
             AttemptToDisconnectDevice(sender);
 
@@ -308,6 +363,8 @@ namespace IRIS.Bluetooth.Windows.Communication
                     _discoveredDevices.FirstOrDefault(device => device.DeviceAddress == sender.BluetoothAddress);
                 if (device == null) return;
 
+                Notify.Verbose(nameof(WindowsBluetoothLEInterface),
+                    $"Disconnected device {device.Name} ({device.DeviceAddress:X})");
                 OnBluetoothDeviceConnectionLost?.Invoke(this, device);
             }
         }
@@ -336,7 +393,7 @@ namespace IRIS.Bluetooth.Windows.Communication
 
             // Wait until device is configured
             await new WaitUntilBluetoothDeviceIsConfigured(device, CancellationToken.None);
-            
+
             // Register device
             RegisterDevice(device);
             return device;
@@ -354,6 +411,9 @@ namespace IRIS.Bluetooth.Windows.Communication
                 OnBluetoothDeviceConnected?.Invoke(this, deviceInstance);
                 DeviceConnected?.Invoke(DeviceBluetoothAddress);
 
+                Notify.Success(nameof(WindowsBluetoothLEInterface),
+                    $"Claimed Device {deviceInstance.Name} ({deviceInstance.DeviceAddress:X})");
+
                 device = deviceInstance;
             }
         }
@@ -362,18 +422,21 @@ namespace IRIS.Bluetooth.Windows.Communication
         ///     Releases a previously claimed Bluetooth LE device.
         ///     Removes the device from the connected devices list and notifies listeners.
         /// </summary>
-        /// <param name="device">The Bluetooth LE device to release.</param>
-        public ValueTask ReleaseDevice(IBluetoothLEDevice device)
+        /// <param name="deviceInstance">The Bluetooth LE device to release.</param>
+        public ValueTask ReleaseDevice(IBluetoothLEDevice deviceInstance)
         {
             lock (_devicesLock)
             {
-                if (!_connectedDevices.Contains(device)) return ValueTask.CompletedTask;
+                if (!_connectedDevices.Contains(deviceInstance)) return ValueTask.CompletedTask;
 
-                _connectedDevices.Remove(device);
+                _connectedDevices.Remove(deviceInstance);
             }
 
-            OnBluetoothDeviceDisconnected?.Invoke(this, device);
+            OnBluetoothDeviceDisconnected?.Invoke(this, deviceInstance);
             DeviceDisconnected?.Invoke(DeviceBluetoothAddress);
+
+            Notify.Success(nameof(WindowsBluetoothLEInterface),
+                $"Released Device {deviceInstance.Name} ({deviceInstance.DeviceAddress:X})");
 
             return ValueTask.CompletedTask;
         }
