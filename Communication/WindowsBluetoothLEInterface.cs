@@ -296,7 +296,7 @@ namespace IRIS.Bluetooth.Windows.Communication
             }
 
             Notify.Verbose(nameof(WindowsBluetoothLEInterface),
-                $"Discovered BluetoothLE Device: {device.Name} ({device.BluetoothAddress})");
+                $"Discovered BluetoothLE Device: {device.Name} ({device.BluetoothAddress:X})");
             WindowsBluetoothLEDevice bluetoothDevice = new(device);
 
             // Wait until device is configured
