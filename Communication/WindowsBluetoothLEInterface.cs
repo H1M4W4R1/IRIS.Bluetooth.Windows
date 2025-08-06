@@ -130,7 +130,7 @@ namespace IRIS.Bluetooth.Windows.Communication
         ///     Gets or sets a value indicating whether the interface is currently scanning for devices.
         ///     This property is used internally to track the scanning state.
         /// </summary>
-        private bool IsRunning { get; set; }
+        public bool IsRunning { get; private set; }
 
         /// <summary>
         ///     The Bluetooth LE advertisement watcher used for scanning for devices.

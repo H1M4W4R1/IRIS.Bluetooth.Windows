@@ -102,6 +102,10 @@ namespace IRIS.Bluetooth.Windows.Structure
 
                 return new DeviceReadSuccessful<byte[]>(data);
             }
+            catch (ObjectDisposedException)
+            {
+                return DeviceOperation.Result<DeviceNotAvailableResult>();
+            }
             catch (Exception exception)
             {
                 Notify.Critical(nameof(WindowsBluetoothLECharacteristic),
@@ -158,6 +162,10 @@ namespace IRIS.Bluetooth.Windows.Structure
 
                 return DeviceOperation.Result<DeviceWriteSuccessfulResult>();
             }
+            catch (ObjectDisposedException)
+            {
+                return DeviceOperation.Result<DeviceNotAvailableResult>();
+            }
             catch (Exception exception)
             {
                 Notify.Critical(nameof(WindowsBluetoothLECharacteristic),
@@ -197,6 +205,10 @@ namespace IRIS.Bluetooth.Windows.Structure
                 GattCharacteristic.ValueChanged += OnValueChanged;
                 return DeviceOperation.Result<DeviceSubscriptionSuccessfulResult>();
             }
+            catch (ObjectDisposedException)
+            {
+                return DeviceOperation.Result<DeviceNotAvailableResult>();
+            }
             catch (Exception exception)
             {
                 Notify.Critical(nameof(WindowsBluetoothLECharacteristic),
@@ -235,6 +247,10 @@ namespace IRIS.Bluetooth.Windows.Structure
 
                 GattCharacteristic.ValueChanged -= OnValueChanged;
                 return DeviceOperation.Result<DeviceUnsubscriptionSuccessfulResult>();
+            }
+            catch (ObjectDisposedException)
+            {
+                return DeviceOperation.Result<DeviceNotAvailableResult>();
             }
             catch (Exception exception)
             {
