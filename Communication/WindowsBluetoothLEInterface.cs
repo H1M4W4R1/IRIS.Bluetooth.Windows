@@ -226,6 +226,13 @@ namespace IRIS.Bluetooth.Windows.Communication
                 {
                     IBluetoothLEDevice device = _connectedDevices[index];
                     OnBluetoothDeviceDisconnected?.Invoke(this, device);
+
+                    // Remove connection status event to prevent triggering after disconnection
+                    if (device is WindowsBluetoothLEDevice {HardwareDevice: not null} windowsBluetoothLEDevice)
+                    {
+                        windowsBluetoothLEDevice.HardwareDevice.ConnectionStatusChanged -=
+                            OnDeviceConnectionStatusChanged;
+                    }
                 }
 
                 _connectedDevices.Clear();
