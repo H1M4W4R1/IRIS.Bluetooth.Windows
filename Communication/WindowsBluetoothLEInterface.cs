@@ -339,7 +339,7 @@ namespace IRIS.Bluetooth.Windows.Communication
                 $"Device {sender.Name} ({sender.BluetoothAddress:X}) status has changed to {sender.ConnectionStatus}");
             if (sender.ConnectionStatus != BluetoothConnectionStatus.Disconnected) return;
 
-            IBluetoothLEDevice? disconnectedDevice = AttemptToDisconnectDevice(sender);
+            IBluetoothLEDevice? disconnectedDevice = GetDeviceFromNative(sender);
 
             lock (_devicesLock)
             {
@@ -349,20 +349,18 @@ namespace IRIS.Bluetooth.Windows.Communication
                 sender.ConnectionStatusChanged -= OnDeviceConnectionStatusChanged;
                 sender.Dispose();
             }
-            
-            if(disconnectedDevice != null)
-                OnBluetoothDeviceConnectionLost?.Invoke(this, disconnectedDevice);
+
+            if (disconnectedDevice != null) OnBluetoothDeviceConnectionLost?.Invoke(this, disconnectedDevice);
 
             Notify.Verbose(nameof(WindowsBluetoothLEInterface),
                 $"Lost connection with device {sender.Name} ({sender.BluetoothAddress:X})");
         }
 
         /// <summary>
-        ///     Attempts to handle the disconnection of a Bluetooth LE device.
-        ///     Notifies listeners through the DeviceConnectionLost event if the device was previously discovered.
+        ///     Attempts to convert native device to IRIS one.
         /// </summary>
-        /// <param name="sender">The Bluetooth LE device that was disconnected</param>
-        private IBluetoothLEDevice? AttemptToDisconnectDevice(BluetoothLEDevice sender)
+        /// <param name="sender">The Bluetooth LE device</param>
+        private IBluetoothLEDevice? GetDeviceFromNative(BluetoothLEDevice sender)
         {
             IBluetoothLEDevice? device = null;
             lock (_devicesLock)
@@ -370,9 +368,6 @@ namespace IRIS.Bluetooth.Windows.Communication
                 device = _discoveredDevices.FirstOrDefault(d
                     => d.DeviceAddress == sender.BluetoothAddress);
                 if (device == null) return null;
-
-                Notify.Verbose(nameof(WindowsBluetoothLEInterface),
-                    $"Disconnected device {device.Name} ({device.DeviceAddress:X})");
             }
 
             return device;
