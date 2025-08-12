@@ -203,7 +203,7 @@ namespace IRIS.Bluetooth.Windows.Structure
 
             foreach (IBluetoothLEService service in Services)
             {
-                if (Regex.IsMatch(service.UUID, serviceUUIDRegex))
+                if (Regex.IsMatch(service.UUID, serviceUUIDRegex, RegexOptions.IgnoreCase))
                     characteristics.AddRange(service.Characteristics);
             }
 
@@ -257,7 +257,7 @@ namespace IRIS.Bluetooth.Windows.Structure
 
             foreach (IBluetoothLEService service in Services)
             {
-                if (Regex.IsMatch(service.UUID, serviceUUIDRegex)) services.Add(service);
+                if (Regex.IsMatch(service.UUID, serviceUUIDRegex, RegexOptions.IgnoreCase)) services.Add(service);
             }
 
             return new DeviceReadSuccessful<IReadOnlyList<IBluetoothLEService>>(services);

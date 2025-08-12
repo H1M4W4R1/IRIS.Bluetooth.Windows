@@ -114,7 +114,7 @@ namespace IRIS.Bluetooth.Windows.Structure
 
             foreach (IBluetoothLECharacteristic characteristic in Characteristics)
             {
-                if (Regex.IsMatch(characteristic.UUID, characteristicUUIDRegex))
+                if (Regex.IsMatch(characteristic.UUID, characteristicUUIDRegex, RegexOptions.IgnoreCase))
                     characteristics.Add(characteristic);
             }
 
