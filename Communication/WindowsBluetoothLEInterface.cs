@@ -224,7 +224,7 @@ namespace IRIS.Bluetooth.Windows.Communication
             {
                 foreach (IBluetoothLEDevice device in _connectedDevices)
                 {
-                    OnBluetoothDeviceConnectionLost?.Invoke(this, device);
+                    OnBluetoothDeviceDisconnected?.Invoke(this, device);
                 }
 
                 _connectedDevices.Clear();
