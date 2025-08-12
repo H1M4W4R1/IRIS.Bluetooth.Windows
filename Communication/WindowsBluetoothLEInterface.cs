@@ -222,8 +222,9 @@ namespace IRIS.Bluetooth.Windows.Communication
             Notify.Verbose(nameof(WindowsBluetoothLEInterface), "Disconnecting all BLE devices.");
             lock (_devicesLock)
             {
-                foreach (IBluetoothLEDevice device in _connectedDevices)
+                for (int index = _connectedDevices.Count - 1; index >= 0; index--)
                 {
+                    IBluetoothLEDevice device = _connectedDevices[index];
                     OnBluetoothDeviceDisconnected?.Invoke(this, device);
                 }
 
